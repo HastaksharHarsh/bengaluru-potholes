@@ -77,27 +77,28 @@ export default function ReportPothole() {
   const voice = useVoiceRecognition(lang);
 
   useEffect(() => {
-    const fallbackToMock = () => {
-      const loc = localities[Math.floor(Math.random() * localities.length)];
-      setPosition({ lat: loc.center.lat + (Math.random() - 0.5) * 0.005, lng: loc.center.lng + (Math.random() - 0.5) * 0.005 });
+    const handleLocationError = (err?: GeolocationPositionError) => {
+      console.warn("Geolocation error:", err);
+      toast.warning("Location access denied or failed. Please allow location permissions in your browser to accurately tag the pothole. Defaulting to city center.");
+      setPosition(BENGALURU_CENTER);
     };
 
     if (!navigator.geolocation) {
-      fallbackToMock();
+      handleLocationError();
       return;
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude });
       },
-      fallbackToMock,
+      handleLocationError,
       { enableHighAccuracy: true, timeout: 5000 }
     );
   }, []);
 
   useEffect(() => {
     if (position) {
-      fetchNearbyPotholes(position.lat, position.lng, 30).then(setNearbyPotholes).catch(console.error);
+      fetchNearbyPotholes(position.lat, position.lng, 15).then(setNearbyPotholes).catch(console.error);
     }
   }, [position]);
 
@@ -194,14 +195,14 @@ export default function ReportPothole() {
   const submit = () => {
     setSubmitting(true);
     setTimeout(async () => {
-      if (!isDuplicate && position && ai && detectedLocality) {
+      if (position && ai && detectedLocality) {
         const generatedId = `ph-${Date.now()}`;
 
         // Normalize size representation against the final cross-checked AI severity
         const normalizedSize: SizeBucket = ai.severity === "critical" ? "large" : ai.severity === "high" ? "medium" : "small";
 
         try {
-          await reportPothole({
+          const res = await reportPothole({
             lat: position.lat,
             lng: position.lng,
             size: normalizedSize,
@@ -210,6 +211,13 @@ export default function ReportPothole() {
             severity: ai.severity,
             severityScore: ai.score,
           });
+
+          if (res.duplicate) {
+             toast.info(`Report logged! This pothole was already reported. It has now been upvoted ${res.upvotes} times and severity increased to ${res.severityScore}.`);
+          } else {
+             toast.success("Pothole reported successfully!");
+          }
+
         } catch (e) {
           console.error("Failed to submit to backend", e);
           toast.error("Failed to report pothole to cloud, checking backend connectivity.");

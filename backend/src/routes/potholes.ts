@@ -33,8 +33,8 @@ router.post("/", upload.single("image"), async (req: Request, res: Response) => 
       return dA - dB;
     })[0];
 
-    // Check for duplicates
-    const nearby = await potholeService.findNearbyPotholes(latitude, longitude, 30);
+    // Check for duplicates (15 meters radius)
+    const nearby = await potholeService.findNearbyPotholes(latitude, longitude, 15);
     const activeNearby = nearby.filter((p) => p.status !== "repaired");
     const repairedNearby = nearby.filter((p) => p.status === "repaired");
 
@@ -42,7 +42,7 @@ router.post("/", upload.single("image"), async (req: Request, res: Response) => 
       // Upvote existing pothole instead
       const existing = activeNearby[0];
       const result = await potholeService.upvotePothole(existing.id);
-      res.status(200).json({ duplicate: true, potholeId: existing.id, upvotes: result?.upvotes });
+      res.status(200).json({ duplicate: true, potholeId: existing.id, upvotes: result?.upvotes, severityScore: result?.severityScore });
       return;
     }
 

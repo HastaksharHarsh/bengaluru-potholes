@@ -1,5 +1,5 @@
 import { GoogleMap, MarkerF, InfoWindowF, useJsApiLoader } from "@react-google-maps/api";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { BENGALURU_CENTER, Pothole, potholes as allPotholes, severityColor, getLocality, getWard } from "@/lib/bengaluru-data";
 import { Badge } from "@/components/ui/badge";
 import { GoogleMapsKeyPrompt, useGoogleMapsKey } from "./GoogleMapsKey";
@@ -45,6 +45,15 @@ export function PotholeMap(props: Props) {
   return <PotholeMapInner {...props} apiKey={key} onResetKey={() => setKey("")} />;
 }
 
+function distanceMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+
 function PotholeMapInner({
   potholes = allPotholes,
   showHeatmap = false,
@@ -62,6 +71,49 @@ function PotholeMapInner({
   });
 
   const [selected, setSelected] = useState<Pothole | null>(null);
+
+  const clusteredPotholes = useMemo(() => {
+    const clustered: Pothole[] = [];
+    const radius = 35; // Merge markers within 35 meters
+    const used = new Set<string>();
+
+    for (const p of potholes) {
+      if (used.has(p.id)) continue;
+      
+      const cluster = [p];
+      used.add(p.id);
+
+      for (const other of potholes) {
+        if (!used.has(other.id) && distanceMeters(p.position, other.position) <= radius) {
+          cluster.push(other);
+          used.add(other.id);
+        }
+      }
+
+      if (cluster.length === 1) {
+        clustered.push(p);
+      } else {
+        const merged: Pothole = { ...p };
+        merged.reports = cluster.reduce((sum, c) => sum + (c.reports || 1), 0);
+        merged.severityScore = Math.min(100, Math.max(...cluster.map(c => c.severityScore)) + (cluster.length - 1) * 2);
+        
+        merged.position = {
+          lat: cluster.reduce((sum, c) => sum + c.position.lat, 0) / cluster.length,
+          lng: cluster.reduce((sum, c) => sum + c.position.lng, 0) / cluster.length,
+        };
+        merged.reoccurred = cluster.some(c => c.reoccurred);
+        
+        // Upgrade severity visually if score got bumped
+        if (merged.severityScore >= 80) merged.severity = "critical";
+        else if (merged.severityScore >= 60) merged.severity = "high";
+        else if (merged.severityScore >= 40) merged.severity = "medium";
+        
+        merged.id = "cluster-" + p.id;
+        clustered.push(merged);
+      }
+    }
+    return clustered;
+  }, [potholes]);
 
   if (loadError) {
     return (
@@ -92,7 +144,7 @@ function PotholeMapInner({
           fullscreenControl: true,
         }}
       >
-        {potholes.map((p) => (
+        {clusteredPotholes.map((p) => (
           <MarkerF
             key={p.id}
             position={p.position}

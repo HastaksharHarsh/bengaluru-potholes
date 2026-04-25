@@ -129,6 +129,10 @@ export async function getMapPotholes(): Promise<
     size: SizeBucket;
     road: string;
     localityId: string;
+    reports: number;
+    daysOpen: number;
+    slaBreached: boolean;
+    reoccurred: boolean;
   }>
 > {
   const snap = await db.collection(COLLECTION).get();
@@ -143,6 +147,10 @@ export async function getMapPotholes(): Promise<
       size: d.size,
       road: d.road,
       localityId: d.localityId,
+      reports: d.reports || 1,
+      daysOpen: d.daysOpen || 0,
+      slaBreached: d.slaBreached || false,
+      reoccurred: d.reoccurred || false,
     };
   });
 }
@@ -207,18 +215,34 @@ export async function updatePotholeStatus(
 }
 
 /**
- * Increment upvote count for a pothole.
+ * Increment upvote count and slightly increase severity for a pothole.
  */
-export async function upvotePothole(id: string): Promise<{ upvotes: number } | null> {
+export async function upvotePothole(id: string): Promise<{ upvotes: number; severityScore: number } | null> {
   const ref = db.collection(COLLECTION).doc(id);
   const doc = await ref.get();
   if (!doc.exists) return null;
 
   const current = doc.data() as Pothole;
   const newUpvotes = (current.upvotes || 0) + 1;
-  await ref.update({ upvotes: newUpvotes, reports: (current.reports || 1) + 1 });
+  const newReports = (current.reports || 1) + 1;
 
-  return { upvotes: newUpvotes };
+  // Slightly increase severity score to indicate more traffic/reports (max 100)
+  let newScore = Math.min(100, (current.severityScore || 0) + 2);
+
+  // Update severity category if score crosses threshold
+  let newSeverity: Severity = current.severity;
+  if (newScore >= 80) newSeverity = "critical";
+  else if (newScore >= 60) newSeverity = "high";
+  else if (newScore >= 40) newSeverity = "medium";
+
+  await ref.update({ 
+    upvotes: newUpvotes, 
+    reports: newReports,
+    severityScore: newScore,
+    severity: newSeverity
+  });
+
+  return { upvotes: newUpvotes, severityScore: newScore };
 }
 
 /**
