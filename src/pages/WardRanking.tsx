@@ -1,21 +1,51 @@
-import { wards, wardStats } from "@/lib/bengaluru-data";
 import { Card } from "@/components/ui/card";
-import { Trophy, Award, Medal, ChevronRight } from "lucide-react";
+import { Trophy, Award, Medal, ChevronRight, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { fetchPotholes } from "@/lib/api";
+import { wards } from "@/lib/bengaluru-data";
+import type { Pothole } from "../../backend/src/models/types";
 
 export default function WardRanking() {
   const { t } = useI18n();
   const navigate = useNavigate();
 
-  const rows = useMemo(
-    () =>
-      wards
-        .map((w) => ({ w, ...wardStats(w.id) }))
-        .sort((a, b) => b.perf - a.perf),
-    []
-  );
+  const [dbPotholes, setDbPotholes] = useState<Pothole[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPotholes({ limit: 5000 })
+      .then((res) => setDbPotholes(res.potholes))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const rows = useMemo(() => {
+    return wards
+      .map((w) => {
+        const items = dbPotholes.filter((p) => p.wardId === w.id);
+        const open = items.filter((p) => p.status !== "repaired");
+        const fixed = items.filter((p) => p.status === "repaired");
+        const breached = open.filter((p) => p.slaBreached).length;
+        const avgResolveDays =
+          fixed.length === 0
+            ? 0
+            : Math.round((fixed.reduce((a, p) => a + p.daysOpen, 0) / fixed.length) * 10) / 10;
+        const fixRate = items.length === 0 ? 0 : fixed.length / items.length;
+        const perf = Math.max(0, Math.min(100, Math.round(fixRate * 100 - breached * 2)));
+        return { w, total: items.length, open: open.length, fixed: fixed.length, breached, avgResolveDays, perf };
+      })
+      .sort((a, b) => b.perf - a.perf);
+  }, [dbPotholes]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const top = rows.slice(0, 3);
   const rest = rows.slice(3);
@@ -38,8 +68,8 @@ export default function WardRanking() {
             idx === 0
               ? "gradient-hero"
               : idx === 1
-              ? "bg-gradient-to-br from-secondary to-secondary/70"
-              : "bg-gradient-to-br from-accent to-accent/70";
+                ? "bg-gradient-to-br from-secondary to-secondary/70"
+                : "bg-gradient-to-br from-accent to-accent/70";
           return (
             <Link key={r.w.id} to={`/wards/${r.w.id}`} className="block">
               <Card
@@ -163,8 +193,8 @@ export default function WardRanking() {
                             r.perf >= 70
                               ? "h-full bg-health-good"
                               : r.perf >= 40
-                              ? "h-full bg-health-warn"
-                              : "h-full bg-health-bad"
+                                ? "h-full bg-health-warn"
+                                : "h-full bg-health-bad"
                           }
                           style={{ width: `${r.perf}%` }}
                         />

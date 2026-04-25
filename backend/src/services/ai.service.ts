@@ -88,10 +88,14 @@ export async function computeSeverity(
   size: SizeBucket,
   position: { lat: number; lng: number },
   locality: Locality,
-  nearbyPotholes: Pothole[]
+  nearbyPotholes: Pothole[],
+  trafficScore?: number,
 ): Promise<AISeverityResult> {
   const sizeWeight = size === "large" ? 35 : size === "medium" ? 20 : 8;
-  const trafficWeight = locality.trafficDensity * 0.4;
+
+  // Use live traffic score if available, otherwise fall back to static locality density
+  const effectiveTrafficScore = trafficScore ?? locality.trafficDensity;
+  const trafficWeight = effectiveTrafficScore * 0.4;
   const arterialBonus = locality.isArterial ? 25 : 5;
 
   const nearby = nearbyPotholes.filter(
@@ -109,9 +113,10 @@ export async function computeSeverity(
   else if (score >= 60) severity = "high";
   else if (score >= 40) severity = "medium";
 
+  const trafficSource = trafficScore !== undefined ? "live" : "static";
   const reasons = [
     `Size: ${size} (+${sizeWeight})`,
-    `Traffic density ${locality.trafficDensity}/100 (+${Math.round(trafficWeight)})`,
+    `Traffic impact ${Math.round(effectiveTrafficScore)}/100 — ${trafficSource} (+${Math.round(trafficWeight)})`,
     locality.isArterial ? "Arterial road (+25)" : "Local road (+5)",
     nearby.length
       ? `Cluster: ${nearby.length} nearby reports (+${clusterBoost})`

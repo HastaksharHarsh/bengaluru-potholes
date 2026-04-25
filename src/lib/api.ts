@@ -60,6 +60,28 @@ export async function fetchNearbyPotholes(lat: number, lng: number, radius?: num
   return fetchAPI<Pothole[]>(`/potholes/nearby?${query.toString()}`);
 }
 
+export interface ProgressionResult {
+  clusterSize: number;
+  trend: "worsening" | "stable" | "improving";
+  trendScore: number;
+  avgSeverityScore: number;
+  earliestReport: string;
+  latestReport: string;
+  timelineEntries: Array<{
+    id: string;
+    reportedAt: string;
+    severityScore: number;
+    severity: string;
+  }>;
+  riskLabel: "Critical Hotspot" | "Deteriorating" | "Stable" | "Recovering";
+}
+
+export async function fetchProgression(lat: number, lng: number, radius?: number): Promise<ProgressionResult> {
+  const query = new URLSearchParams({ lat: String(lat), lng: String(lng) });
+  if (radius) query.append("radius", String(radius));
+  return fetchAPI<ProgressionResult>(`/potholes/progression?${query.toString()}`);
+}
+
 export async function reportPothole(data: {
   lat: number;
   lng: number;

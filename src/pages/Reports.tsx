@@ -1,31 +1,40 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-  FileText, 
-  Download, 
-  Calendar, 
-  TrendingUp, 
-  TrendingDown, 
+import {
+  FileText,
+  Download,
+  Calendar,
+  TrendingUp,
+  TrendingDown,
   AlertCircle,
   CheckCircle2,
   Clock,
   Sparkles,
   BarChart3,
-  History
+  History,
+  Loader2
 } from "lucide-react";
-import { 
-  generateWeeklyReport, 
-  mockPastReports, 
-  WeeklyReport 
-} from "@/lib/bengaluru-data";
+import type { WeeklyReport } from "@/lib/bengaluru-data";
+import { fetchWeeklyReports } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 
 export default function Reports() {
   const { t } = useI18n();
-  const currentReport = useMemo(() => generateWeeklyReport("Current Week (Apr 19 - 25)"), []);
-  const [selectedReport, setSelectedReport] = useState<WeeklyReport>(currentReport);
+  const [reports, setReports] = useState<WeeklyReport[]>([]);
+  const [selectedReport, setSelectedReport] = useState<WeeklyReport | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchWeeklyReports()
+      .then((data) => {
+        setReports(data);
+        if (data.length > 0) setSelectedReport(data[0]);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
 
   const handleDownloadPDF = (report: WeeklyReport) => {
     // Simulate PDF generation
@@ -62,9 +71,17 @@ export default function Reports() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     toast.success("Report downloaded successfully as text/PDF");
   };
+
+  if (loading || !selectedReport) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const severityData = [
     { label: "Critical", value: selectedReport.severityBreakdown.critical, color: "bg-red-500" },
@@ -82,7 +99,7 @@ export default function Reports() {
           <h1 className="text-2xl lg:text-3xl font-display font-bold">Civic Reports</h1>
           <p className="text-muted-foreground text-sm">Transparency and accountability through weekly road audits.</p>
         </div>
-        <Button 
+        <Button
           onClick={() => handleDownloadPDF(selectedReport)}
           className="gradient-hero text-white shadow-elegant"
         >
@@ -100,15 +117,14 @@ export default function Reports() {
               Past Reports
             </h2>
             <div className="space-y-2">
-              {[currentReport, ...mockPastReports].map((report) => (
+              {reports.map((report) => (
                 <button
                   key={report.id}
                   onClick={() => setSelectedReport(report)}
-                  className={`w-full text-left p-3 rounded-xl transition-all border ${
-                    selectedReport.id === report.id 
-                    ? "bg-white border-primary/20 shadow-sm text-primary font-semibold" 
-                    : "hover:bg-white/50 border-transparent text-muted-foreground"
-                  }`}
+                  className={`w-full text-left p-3 rounded-xl transition-all border ${selectedReport.id === report.id
+                      ? "bg-white border-primary/20 shadow-sm text-primary font-semibold"
+                      : "hover:bg-white/50 border-transparent text-muted-foreground"
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-sm">{report.week}</span>
@@ -171,7 +187,7 @@ export default function Reports() {
                       <span className="text-muted-foreground">{d.value}</span>
                     </div>
                     <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                      <div 
+                      <div
                         className={`h-full ${d.color} transition-all duration-500`}
                         style={{ width: `${(d.value / maxSeverity) * 100}%` }}
                       />

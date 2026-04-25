@@ -48,6 +48,9 @@ export interface Pothole {
   improperRepair?: boolean;
   linkedPreviousId?: string | null;
   voiceNote?: string;
+  trafficScore?: number;      // 0–100, live at time of report
+  speedLimitKph?: number;     // from Roads API
+  congestionRatio?: number;   // duration / staticDuration (1.0 = free flow)
 }
 
 export interface WeatherSnapshot {

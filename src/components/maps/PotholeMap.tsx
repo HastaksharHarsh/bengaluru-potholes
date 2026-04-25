@@ -1,6 +1,7 @@
 import { GoogleMap, MarkerF, InfoWindowF, useJsApiLoader } from "@react-google-maps/api";
 import { useEffect, useState, useMemo } from "react";
-import { BENGALURU_CENTER, Pothole, potholes as allPotholes, severityColor, getLocality, getWard } from "@/lib/bengaluru-data";
+import { BENGALURU_CENTER, Pothole, severityColor, getLocality, getWard } from "@/lib/bengaluru-data";
+import { fetchProgression, type ProgressionResult } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { GoogleMapsKeyPrompt, useGoogleMapsKey } from "./GoogleMapsKey";
 import { PotholeStatusBadge } from "@/components/PotholeStatusBadge";
@@ -55,7 +56,7 @@ function distanceMeters(a: { lat: number; lng: number }, b: { lat: number; lng: 
 }
 
 function PotholeMapInner({
-  potholes = allPotholes,
+  potholes = [],
   showHeatmap = false,
   height = "70vh",
   zoom = 11,
@@ -71,6 +72,17 @@ function PotholeMapInner({
   });
 
   const [selected, setSelected] = useState<Pothole | null>(null);
+  const [progression, setProgression] = useState<ProgressionResult | null>(null);
+
+  // Fetch progression when a marker is selected
+  useEffect(() => {
+    if (selected) {
+      setProgression(null);
+      fetchProgression(selected.position.lat, selected.position.lng, 50)
+        .then(setProgression)
+        .catch(() => setProgression(null));
+    }
+  }, [selected]);
 
   const clusteredPotholes = useMemo(() => {
     const clustered: Pothole[] = [];
@@ -79,7 +91,7 @@ function PotholeMapInner({
 
     for (const p of potholes) {
       if (used.has(p.id)) continue;
-      
+
       const cluster = [p];
       used.add(p.id);
 
@@ -96,18 +108,18 @@ function PotholeMapInner({
         const merged: Pothole = { ...p };
         merged.reports = cluster.reduce((sum, c) => sum + (c.reports || 1), 0);
         merged.severityScore = Math.min(100, Math.max(...cluster.map(c => c.severityScore)) + (cluster.length - 1) * 2);
-        
+
         merged.position = {
           lat: cluster.reduce((sum, c) => sum + c.position.lat, 0) / cluster.length,
           lng: cluster.reduce((sum, c) => sum + c.position.lng, 0) / cluster.length,
         };
         merged.reoccurred = cluster.some(c => c.reoccurred);
-        
+
         // Upgrade severity visually if score got bumped
         if (merged.severityScore >= 80) merged.severity = "critical";
         else if (merged.severityScore >= 60) merged.severity = "high";
         else if (merged.severityScore >= 40) merged.severity = "medium";
-        
+
         merged.id = "cluster-" + p.id;
         clustered.push(merged);
       }
@@ -189,6 +201,58 @@ function PotholeMapInner({
                 {selected.reports} reports • {selected.daysOpen}d open
                 {selected.slaBreached && <span className="text-destructive font-medium"> • SLA breached</span>}
               </div>
+              {selected.trafficScore !== undefined && (
+                <div className="text-xs mt-1.5 flex items-center gap-1 font-medium" style={{ color: selected.trafficScore >= 70 ? "#ef4444" : selected.trafficScore >= 40 ? "#f97316" : "#22c55e" }}>
+                  🚦 Traffic: {selected.trafficScore}/100
+                  {selected.speedLimitKph && <span className="text-muted-foreground font-normal"> · {selected.speedLimitKph} km/h</span>}
+                  {selected.congestionRatio && selected.congestionRatio > 1.1 && (
+                    <span className="text-muted-foreground font-normal"> · {selected.congestionRatio.toFixed(1)}× congested</span>
+                  )}
+                </div>
+              )}
+              {/* Cluster Progression */}
+              {progression && progression.clusterSize > 1 && (
+                <div className="mt-2 pt-2 border-t border-gray-200">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      padding: "1px 6px",
+                      borderRadius: 6,
+                      color: "white",
+                      backgroundColor:
+                        progression.riskLabel === "Critical Hotspot" ? "#dc2626" :
+                          progression.riskLabel === "Deteriorating" ? "#f97316" :
+                            progression.riskLabel === "Recovering" ? "#22c55e" : "#6b7280",
+                    }}>
+                      {progression.riskLabel}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {progression.clusterSize} reports nearby
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <span>{progression.trend === "worsening" ? "↑" : progression.trend === "improving" ? "↓" : "→"}</span>
+                    <span>Trend: {progression.trendScore > 0 ? "+" : ""}{progression.trendScore}</span>
+                    <span>· Avg: {progression.avgSeverityScore}/100</span>
+                  </div>
+                  {/* Mini timeline */}
+                  <div className="flex gap-0.5 mt-1.5" style={{ height: 16 }}>
+                    {progression.timelineEntries.map((e, i) => (
+                      <div
+                        key={e.id}
+                        title={`${new Date(e.reportedAt).toLocaleDateString()} — Score: ${e.severityScore}`}
+                        style={{
+                          flex: 1,
+                          borderRadius: 2,
+                          backgroundColor: severityColor(e.severity as any),
+                          opacity: 0.4 + (i / progression.timelineEntries.length) * 0.6,
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </InfoWindowF>
         )}

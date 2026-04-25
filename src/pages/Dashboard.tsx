@@ -8,7 +8,6 @@ import { PotholeStatusBadge } from "@/components/PotholeStatusBadge";
 import { useI18n } from "@/lib/i18n";
 import {
   localities,
-  localityHealthScore,
   getLocality,
   getWard,
   BENGALURU_CENTER,
@@ -278,6 +277,18 @@ export default function Dashboard() {
     [position, detectedLocality, dbPotholes]
   );
 
+  // Live locality health score computed from fetched data instead of mock
+  const liveHealthScore = (localityId: string) => {
+    const loc = localities.find(l => l.id === localityId);
+    if (!loc) return 50;
+    const items = dbPotholes.filter(p => p.localityId === localityId && p.status !== "repaired");
+    if (items.length === 0) return 100;
+    const avgSeverity = items.reduce((a, p) => a + p.severityScore, 0) / items.length;
+    const overdue = items.filter(p => p.slaBreached).length;
+    const score = 100 - items.length * 1.6 - avgSeverity * 0.35 - overdue * 3 - loc.trafficDensity * 0.1;
+    return Math.max(0, Math.min(100, Math.round(score)));
+  };
+
   const supervisorInsights = useMemo(
     () => generateSupervisorInsights(detectedLocality, open),
     [detectedLocality, open]
@@ -425,7 +436,7 @@ export default function Dashboard() {
                 <h2 className="text-base lg:text-lg font-display font-semibold pt-1">Locality Health</h2>
                 <div className="space-y-2">
                   {localities.slice(0, 5).map((l) => {
-                    const score = localityHealthScore(l.id);
+                    const score = liveHealthScore(l.id);
                     const tone = score >= 70 ? "bg-health-good" : score >= 40 ? "bg-health-warn" : "bg-health-bad";
                     return (
                       <div key={l.id} className="flex items-center gap-3 bg-card rounded-lg p-3 border border-border">
@@ -484,7 +495,7 @@ export default function Dashboard() {
                 <h2 className="text-base lg:text-lg font-display font-semibold pt-1">Local Safety Score</h2>
                 <div className="space-y-2">
                   {localities.slice(0, 5).map((l) => {
-                    const score = localityHealthScore(l.id);
+                    const score = liveHealthScore(l.id);
                     const label = score >= 70 ? "Safe" : score >= 40 ? "Caution" : "Danger";
                     const tone = score >= 70 ? "text-green-600" : score >= 40 ? "text-amber-600" : "text-red-600";
                     const barTone = score >= 70 ? "bg-health-good" : score >= 40 ? "bg-health-warn" : "bg-health-bad";
