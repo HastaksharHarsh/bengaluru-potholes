@@ -1,11 +1,11 @@
-import { GoogleMap, MarkerF, InfoWindowF, HeatmapLayerF } from "@react-google-maps/api";
-import { useEffect, useMemo, useState } from "react";
+import { GoogleMap, MarkerF, InfoWindowF } from "@react-google-maps/api";
+import { useEffect, useState } from "react";
 import { BENGALURU_CENTER, Pothole, potholes as allPotholes, severityColor, getLocality, getWard } from "@/lib/bengaluru-data";
 import { Badge } from "@/components/ui/badge";
 import { GoogleMapsKeyPrompt, useGoogleMapsKey } from "./GoogleMapsKey";
 import { PotholeStatusBadge } from "@/components/PotholeStatusBadge";
 
-const LIBS = ["visualization", "places"];
+const LIBS = ["places"];
 const GMAPS_SCRIPT_ID = "gmaps-script";
 
 let googleMapsLoadPromise: Promise<void> | null = null;
@@ -39,6 +39,7 @@ function loadGoogleMaps(apiKey: string) {
     const params = new URLSearchParams({
       key,
       v: "weekly",
+      loading: "async",
       libraries: LIBS.join(","),
       language: "en",
       region: "IN",
@@ -130,15 +131,6 @@ function PotholeMapInner({
   const { isLoaded, loadError } = useGoogleMapsScript(apiKey);
   const [selected, setSelected] = useState<Pothole | null>(null);
 
-  const heatmapData = useMemo(() => {
-    if (!isLoaded || !showHeatmap || !window.google) return [];
-    return potholes.map((p) => ({
-      location: new google.maps.LatLng(p.position.lat, p.position.lng),
-      weight: p.severityScore / 100,
-    }));
-  }, [potholes, isLoaded, showHeatmap]);
-
-
   if (loadError) {
     return (
       <div style={{ height }} className="flex flex-col items-center justify-center bg-muted/30 rounded-xl p-6 gap-3">
@@ -168,24 +160,7 @@ function PotholeMapInner({
           fullscreenControl: true,
         }}
       >
-        {showHeatmap && heatmapData.length > 0 && (
-          <HeatmapLayerF
-            data={heatmapData}
-            options={{
-              radius: 28,
-              opacity: 0.7,
-              gradient: [
-                "rgba(0,255,180,0)",
-                "rgba(56,189,248,0.6)",
-                "rgba(250,204,21,0.7)",
-                "rgba(249,115,22,0.85)",
-                "rgba(220,38,38,1)",
-              ],
-            }}
-          />
-        )}
-        {!showHeatmap &&
-          potholes.map((p) => (
+        {potholes.map((p) => (
             <MarkerF
               key={p.id}
               position={p.position}
@@ -194,12 +169,12 @@ function PotholeMapInner({
                 onSelect?.(p);
               }}
               icon={{
-                path: google.maps.SymbolPath.CIRCLE,
+                path: window.google?.maps?.SymbolPath?.CIRCLE || 0,
                 scale: p.severity === "critical" ? 9 : p.severity === "high" ? 7 : 6,
                 fillColor: p.status === "repaired" ? "#10b981" : severityColor(p.severity),
-                fillOpacity: 0.9,
+                fillOpacity: showHeatmap ? 0.3 : 0.9,
                 strokeColor: p.reoccurred ? "#ef4444" : "#fff",
-                strokeWeight: p.reoccurred ? 3 : 2,
+                strokeWeight: p.reoccurred ? 3 : (showHeatmap ? 0 : 2),
               }}
             />
           ))}
