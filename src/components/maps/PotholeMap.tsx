@@ -1,87 +1,15 @@
-import { GoogleMap, MarkerF, InfoWindowF, HeatmapLayerF } from "@react-google-maps/api";
-import { useEffect, useMemo, useState } from "react";
+import { GoogleMap, MarkerF, InfoWindowF, useJsApiLoader } from "@react-google-maps/api";
+import { useEffect, useState, useMemo } from "react";
 import { BENGALURU_CENTER, Pothole, potholes as allPotholes, severityColor, getLocality, getWard } from "@/lib/bengaluru-data";
 import { Badge } from "@/components/ui/badge";
 import { GoogleMapsKeyPrompt, useGoogleMapsKey } from "./GoogleMapsKey";
 import { PotholeStatusBadge } from "@/components/PotholeStatusBadge";
 
-const LIBS = ["visualization", "places"];
-const GMAPS_SCRIPT_ID = "gmaps-script";
+const LIBS: ("places")[] = ["places"];
 
-let googleMapsLoadPromise: Promise<void> | null = null;
-let googleMapsLoadKey: string | null = null;
+// Removed custom loadGoogleMaps and useGoogleMapsScript
+// We will use useJsApiLoader from @react-google-maps/api in PotholeMapInner instead
 
-function loadGoogleMaps(apiKey: string) {
-  const key = apiKey.trim();
-
-  if (!key) return Promise.reject(new Error("Google Maps API key is required."));
-  if (window.google?.maps?.Map) return Promise.resolve();
-  if (googleMapsLoadPromise && googleMapsLoadKey === key) return googleMapsLoadPromise;
-
-  const existing = document.getElementById(GMAPS_SCRIPT_ID) as HTMLScriptElement | null;
-  if (existing && existing.dataset.apiKey !== key) {
-    existing.remove();
-    googleMapsLoadPromise = null;
-    googleMapsLoadKey = null;
-  }
-
-  const current = document.getElementById(GMAPS_SCRIPT_ID) as HTMLScriptElement | null;
-  if (current && current.dataset.apiKey === key) {
-    googleMapsLoadPromise = new Promise((resolve, reject) => {
-      current.addEventListener("load", () => resolve(), { once: true });
-      current.addEventListener("error", () => reject(new Error("Google Maps failed to load.")), { once: true });
-    });
-    googleMapsLoadKey = key;
-    return googleMapsLoadPromise;
-  }
-
-  googleMapsLoadPromise = new Promise((resolve, reject) => {
-    const params = new URLSearchParams({
-      key,
-      v: "weekly",
-      libraries: LIBS.join(","),
-      language: "en",
-      region: "IN",
-      auth_referrer_policy: "origin",
-    });
-    const script = document.createElement("script");
-    script.id = GMAPS_SCRIPT_ID;
-    script.dataset.apiKey = key;
-    script.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Google Maps failed to load."));
-    document.head.appendChild(script);
-  });
-  googleMapsLoadKey = key;
-  return googleMapsLoadPromise;
-}
-
-function useGoogleMapsScript(apiKey: string) {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [loadError, setLoadError] = useState<Error | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    setIsLoaded(false);
-    setLoadError(null);
-
-    loadGoogleMaps(apiKey)
-      .then(() => {
-        if (active) setIsLoaded(true);
-      })
-      .catch((error) => {
-        if (active) setLoadError(error instanceof Error ? error : new Error("Google Maps failed to load."));
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [apiKey]);
-
-  return { isLoaded, loadError };
-}
 
 const containerStyle = { width: "100%", height: "100%" };
 
@@ -117,6 +45,15 @@ export function PotholeMap(props: Props) {
   return <PotholeMapInner {...props} apiKey={key} onResetKey={() => setKey("")} />;
 }
 
+function distanceMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+
 function PotholeMapInner({
   potholes = allPotholes,
   showHeatmap = false,
@@ -127,17 +64,56 @@ function PotholeMapInner({
   apiKey,
   onResetKey,
 }: Props & { apiKey: string; onResetKey: () => void }) {
-  const { isLoaded, loadError } = useGoogleMapsScript(apiKey);
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: apiKey,
+    libraries: LIBS,
+  });
+
   const [selected, setSelected] = useState<Pothole | null>(null);
 
-  const heatmapData = useMemo(() => {
-    if (!isLoaded || !showHeatmap || !window.google) return [];
-    return potholes.map((p) => ({
-      location: new google.maps.LatLng(p.position.lat, p.position.lng),
-      weight: p.severityScore / 100,
-    }));
-  }, [potholes, isLoaded, showHeatmap]);
+  const clusteredPotholes = useMemo(() => {
+    const clustered: Pothole[] = [];
+    const radius = 35; // Merge markers within 35 meters
+    const used = new Set<string>();
 
+    for (const p of potholes) {
+      if (used.has(p.id)) continue;
+      
+      const cluster = [p];
+      used.add(p.id);
+
+      for (const other of potholes) {
+        if (!used.has(other.id) && distanceMeters(p.position, other.position) <= radius) {
+          cluster.push(other);
+          used.add(other.id);
+        }
+      }
+
+      if (cluster.length === 1) {
+        clustered.push(p);
+      } else {
+        const merged: Pothole = { ...p };
+        merged.reports = cluster.reduce((sum, c) => sum + (c.reports || 1), 0);
+        merged.severityScore = Math.min(100, Math.max(...cluster.map(c => c.severityScore)) + (cluster.length - 1) * 2);
+        
+        merged.position = {
+          lat: cluster.reduce((sum, c) => sum + c.position.lat, 0) / cluster.length,
+          lng: cluster.reduce((sum, c) => sum + c.position.lng, 0) / cluster.length,
+        };
+        merged.reoccurred = cluster.some(c => c.reoccurred);
+        
+        // Upgrade severity visually if score got bumped
+        if (merged.severityScore >= 80) merged.severity = "critical";
+        else if (merged.severityScore >= 60) merged.severity = "high";
+        else if (merged.severityScore >= 40) merged.severity = "medium";
+        
+        merged.id = "cluster-" + p.id;
+        clustered.push(merged);
+      }
+    }
+    return clustered;
+  }, [potholes]);
 
   if (loadError) {
     return (
@@ -168,41 +144,24 @@ function PotholeMapInner({
           fullscreenControl: true,
         }}
       >
-        {showHeatmap && heatmapData.length > 0 && (
-          <HeatmapLayerF
-            data={heatmapData}
-            options={{
-              radius: 28,
-              opacity: 0.7,
-              gradient: [
-                "rgba(0,255,180,0)",
-                "rgba(56,189,248,0.6)",
-                "rgba(250,204,21,0.7)",
-                "rgba(249,115,22,0.85)",
-                "rgba(220,38,38,1)",
-              ],
+        {clusteredPotholes.map((p) => (
+          <MarkerF
+            key={p.id}
+            position={p.position}
+            onClick={() => {
+              setSelected(p);
+              onSelect?.(p);
+            }}
+            icon={{
+              path: window.google?.maps?.SymbolPath?.CIRCLE || 0,
+              scale: p.severity === "critical" ? 9 : p.severity === "high" ? 7 : 6,
+              fillColor: p.status === "repaired" ? "#10b981" : severityColor(p.severity),
+              fillOpacity: showHeatmap ? 0.3 : 0.9,
+              strokeColor: p.reoccurred ? "#ef4444" : "#fff",
+              strokeWeight: p.reoccurred ? 3 : (showHeatmap ? 0 : 2),
             }}
           />
-        )}
-        {!showHeatmap &&
-          potholes.map((p) => (
-            <MarkerF
-              key={p.id}
-              position={p.position}
-              onClick={() => {
-                setSelected(p);
-                onSelect?.(p);
-              }}
-              icon={{
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: p.severity === "critical" ? 9 : p.severity === "high" ? 7 : 6,
-                fillColor: p.status === "repaired" ? "#10b981" : severityColor(p.severity),
-                fillOpacity: 0.9,
-                strokeColor: p.reoccurred ? "#ef4444" : "#fff",
-                strokeWeight: p.reoccurred ? 3 : 2,
-              }}
-            />
-          ))}
+        ))}
 
         {selected && (
           <InfoWindowF position={selected.position} onCloseClick={() => setSelected(null)}>

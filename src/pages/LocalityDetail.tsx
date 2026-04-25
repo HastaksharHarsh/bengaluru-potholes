@@ -1,9 +1,11 @@
 import { useParams, Link } from "react-router-dom";
-import { localities, wards, potholes, Severity } from "@/lib/bengaluru-data";
+import { localities, wards, Severity } from "@/lib/bengaluru-data";
+import { fetchPotholes } from "@/lib/api";
+import { Pothole } from "../../backend/src/models/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, Filter, SlidersHorizontal, Activity } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 
 type TimeToRes = "Fast" | "Moderate" | "Slow";
@@ -14,7 +16,7 @@ export default function LocalityDetail() {
   const { lang } = useI18n();
 
   const locality = localities.find((l) => l.id === id);
-  
+
   // We get the ward(s) for this locality. In our mock data, it's 1 ward.
   const wardIds = locality ? [locality.wardId] : [];
   const localityWards = wards.filter((w) => wardIds.includes(w.id));
@@ -27,15 +29,20 @@ export default function LocalityDetail() {
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState<"status" | "potholes" | "resolution">("status");
 
+  const [dbPotholes, setDbPotholes] = useState<Pothole[]>([]);
+  useEffect(() => {
+    fetchPotholes().then(res => setDbPotholes(res.potholes)).catch(console.error);
+  }, []);
+
   // --- Compute Ward Stats ---
   const wardStats = useMemo(() => {
     return localityWards.map((w) => {
       // Find potholes in this ward
       // NOTE: Our mock data links potholes to both localityId and wardId.
-      const wPotholes = potholes.filter((p) => p.wardId === w.id && p.localityId === locality?.id);
-      
+      const wPotholes = dbPotholes.filter((p) => p.wardId === w.id && p.localityId === locality?.id);
+
       const totalPotholes = wPotholes.length;
-      
+
       const severities = {
         low: wPotholes.filter((p) => p.severity === "low").length,
         medium: wPotholes.filter((p) => p.severity === "medium").length,
@@ -44,9 +51,9 @@ export default function LocalityDetail() {
 
       const fixed = wPotholes.filter((p) => p.status === "repaired");
       const resRate = totalPotholes === 0 ? 0 : Math.round((fixed.length / totalPotholes) * 100);
-      
+
       const avgResDays = fixed.length === 0 ? 0 : fixed.reduce((acc, p) => acc + p.daysOpen, 0) / fixed.length;
-      
+
       let timeToRes: TimeToRes = "Moderate";
       if (avgResDays <= 3) timeToRes = "Fast";
       else if (avgResDays > 7) timeToRes = "Slow";
@@ -61,7 +68,7 @@ export default function LocalityDetail() {
 
       return { w, totalPotholes, severities, resRate, avgResDays, timeToRes, status, wPotholes };
     });
-  }, [localityWards, locality]);
+  }, [localityWards, locality, dbPotholes]);
 
   // --- Apply Filters & Sort ---
   const filteredWards = useMemo(() => {
@@ -69,7 +76,7 @@ export default function LocalityDetail() {
       if (stat.totalPotholes < minPotholes) return false;
       if (stat.resRate < minResolution) return false;
       if (!selectedTime.includes(stat.timeToRes)) return false;
-      
+
       const hasMatchingSeverity = stat.wPotholes.some(p => selectedSeverities.includes(p.severity));
       if (stat.totalPotholes > 0 && !hasMatchingSeverity && selectedSeverities.length < 4) return false;
 
@@ -118,8 +125,8 @@ export default function LocalityDetail() {
       </div>
 
       {/* Filter Toggle Mobile */}
-      <Button 
-        variant="outline" 
+      <Button
+        variant="outline"
         className="w-full flex lg:hidden items-center justify-center gap-2 rounded-xl"
         onClick={() => setShowFilters(!showFilters)}
       >
@@ -134,8 +141,8 @@ export default function LocalityDetail() {
           </div>
           <div className="flex items-center gap-2 text-xs">
             <span className="font-semibold text-muted-foreground">Sort By:</span>
-            <select 
-              value={sortBy} 
+            <select
+              value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
               className="bg-transparent border border-border rounded px-2 py-1 outline-none text-foreground"
             >
@@ -146,14 +153,14 @@ export default function LocalityDetail() {
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          
+
           {/* Potholes Range */}
           <div className="space-y-3">
             <label className="text-xs font-semibold">Min Potholes: {minPotholes}</label>
-            <input 
-              type="range" 
-              min="0" max="20" 
-              value={minPotholes} 
+            <input
+              type="range"
+              min="0" max="20"
+              value={minPotholes}
               onChange={(e) => setMinPotholes(Number(e.target.value))}
               className="w-full accent-primary"
             />
@@ -162,10 +169,10 @@ export default function LocalityDetail() {
           {/* Resolution Range */}
           <div className="space-y-3">
             <label className="text-xs font-semibold">Min Resolution Rate: {minResolution}%</label>
-            <input 
-              type="range" 
+            <input
+              type="range"
               min="0" max="100" step="10"
-              value={minResolution} 
+              value={minResolution}
               onChange={(e) => setMinResolution(Number(e.target.value))}
               className="w-full accent-primary"
             />
@@ -179,11 +186,10 @@ export default function LocalityDetail() {
                 <button
                   key={sev}
                   onClick={() => toggleSeverity(sev)}
-                  className={`px-2 py-1 text-[10px] uppercase font-semibold rounded-md border transition-all ${
-                    selectedSeverities.includes(sev) 
-                      ? "bg-primary text-primary-foreground border-primary" 
+                  className={`px-2 py-1 text-[10px] uppercase font-semibold rounded-md border transition-all ${selectedSeverities.includes(sev)
+                      ? "bg-primary text-primary-foreground border-primary"
                       : "bg-muted/30 text-muted-foreground border-border hover:bg-muted"
-                  }`}
+                    }`}
                 >
                   {sev}
                 </button>
@@ -199,11 +205,10 @@ export default function LocalityDetail() {
                 <button
                   key={time}
                   onClick={() => toggleTime(time)}
-                  className={`px-2 py-1 text-[10px] uppercase font-semibold rounded-md border transition-all ${
-                    selectedTime.includes(time) 
-                      ? "bg-secondary text-secondary-foreground border-secondary" 
+                  className={`px-2 py-1 text-[10px] uppercase font-semibold rounded-md border transition-all ${selectedTime.includes(time)
+                      ? "bg-secondary text-secondary-foreground border-secondary"
                       : "bg-muted/30 text-muted-foreground border-border hover:bg-muted"
-                  }`}
+                    }`}
                 >
                   {time}
                 </button>
@@ -231,7 +236,7 @@ export default function LocalityDetail() {
             return (
               <Link to={`/wards/${stat.w.id}`} key={stat.w.id}>
                 <Card className="overflow-hidden flex flex-col md:flex-row shadow-sm hover:shadow-md hover:border-primary/50 transition-all cursor-pointer group">
-                  
+
                   {/* Left block - Identity & Status */}
                   <div className="p-5 md:w-1/3 bg-muted/20 border-b md:border-b-0 md:border-r border-border flex flex-col justify-between gap-4 group-hover:bg-muted/40 transition-colors">
                     <div>
@@ -239,49 +244,49 @@ export default function LocalityDetail() {
                       <div className="font-display font-bold text-lg group-hover:text-primary transition-colors">{stat.w.name}</div>
                       <div className="text-xs text-muted-foreground mt-1">{stat.w.zone} Zone</div>
                     </div>
-                    
+
                     <div className={`px-3 py-1.5 rounded-lg border inline-flex items-center gap-1.5 w-max font-semibold text-xs ${statusColors[stat.status]}`}>
                       <Activity className="h-3.5 w-3.5" />
                       Status: {stat.status}
                     </div>
                   </div>
 
-                {/* Right block - Stats */}
-                <div className="p-5 md:w-2/3 grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  {/* Total */}
-                  <div className="space-y-1">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Potholes</div>
-                    <div className="text-2xl font-bold">{stat.totalPotholes}</div>
-                  </div>
-
-                  {/* Resolution Rate */}
-                  <div className="space-y-1">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Resolution Rate</div>
-                    <div className="text-2xl font-bold">{stat.resRate}%</div>
-                  </div>
-
-                  {/* Avg Res Time */}
-                  <div className="space-y-1">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Avg Resolve Time</div>
-                    <div className="text-xl font-bold mt-1">
-                      {stat.avgResDays === 0 ? "—" : `${Math.round(stat.avgResDays * 10)/10} days`}
+                  {/* Right block - Stats */}
+                  <div className="p-5 md:w-2/3 grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Total */}
+                    <div className="space-y-1">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Potholes</div>
+                      <div className="text-2xl font-bold">{stat.totalPotholes}</div>
                     </div>
-                    <div className="text-[10px] font-semibold text-muted-foreground">{stat.timeToRes}</div>
-                  </div>
 
-                  {/* Severity Dist */}
-                  <div className="space-y-1">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Severity (L/M/H)</div>
-                    <div className="flex items-center gap-1.5 mt-2">
-                      <div className="px-1.5 py-0.5 rounded bg-green-500/20 text-green-700 text-xs font-bold">{stat.severities.low}</div>
-                      <div className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 text-xs font-bold">{stat.severities.medium}</div>
-                      <div className="px-1.5 py-0.5 rounded bg-red-500/20 text-red-700 text-xs font-bold">{stat.severities.high}</div>
+                    {/* Resolution Rate */}
+                    <div className="space-y-1">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Resolution Rate</div>
+                      <div className="text-2xl font-bold">{stat.resRate}%</div>
                     </div>
-                  </div>
 
-                </div>
-              </Card>
-            </Link>
+                    {/* Avg Res Time */}
+                    <div className="space-y-1">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Avg Resolve Time</div>
+                      <div className="text-xl font-bold mt-1">
+                        {stat.avgResDays === 0 ? "—" : `${Math.round(stat.avgResDays * 10) / 10} days`}
+                      </div>
+                      <div className="text-[10px] font-semibold text-muted-foreground">{stat.timeToRes}</div>
+                    </div>
+
+                    {/* Severity Dist */}
+                    <div className="space-y-1">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Severity (L/M/H)</div>
+                      <div className="flex items-center gap-1.5 mt-2">
+                        <div className="px-1.5 py-0.5 rounded bg-green-500/20 text-green-700 text-xs font-bold">{stat.severities.low}</div>
+                        <div className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 text-xs font-bold">{stat.severities.medium}</div>
+                        <div className="px-1.5 py-0.5 rounded bg-red-500/20 text-red-700 text-xs font-bold">{stat.severities.high}</div>
+                      </div>
+                    </div>
+
+                  </div>
+                </Card>
+              </Link>
             );
           })
         )}

@@ -7,14 +7,14 @@ import { SeverityBadge } from "@/components/SeverityBadge";
 import { PotholeStatusBadge } from "@/components/PotholeStatusBadge";
 import { useI18n } from "@/lib/i18n";
 import {
-  potholes,
   localities,
   localityHealthScore,
   getLocality,
   getWard,
   BENGALURU_CENTER,
-  markPotholeRepaired,
 } from "@/lib/bengaluru-data";
+import { fetchPotholes, updatePotholeStatus } from "@/lib/api";
+import { Pothole } from "../../backend/src/models/types";
 import { useAppStore } from "@/lib/store";
 import {
   Activity,
@@ -56,7 +56,8 @@ type CitizenAlert = {
 
 function generateCitizenInsights(
   position: { lat: number; lng: number } | null,
-  detectedLocality: typeof localities[number] | null
+  detectedLocality: typeof localities[number] | null,
+  potholes: Pothole[]
 ): CitizenAlert[] {
   const alerts: CitizenAlert[] = [];
   const open = potholes.filter((p) => p.status !== "repaired");
@@ -164,7 +165,7 @@ type SupervisorAlert = {
 
 function generateSupervisorInsights(
   detectedLocality: typeof localities[number] | null,
-  open: typeof potholes
+  open: Pothole[]
 ): SupervisorAlert[] {
   const out: SupervisorAlert[] = [];
   const worst = [...localities]
@@ -206,6 +207,12 @@ export default function Dashboard() {
   const [position, setPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(true);
   const [locError, setLocError] = useState<string | null>(null);
+  const [dbPotholes, setDbPotholes] = useState<Pothole[]>([]);
+  const [loadingDb, setLoadingDb] = useState(true);
+
+  useEffect(() => {
+    fetchPotholes().then(res => setDbPotholes(res.potholes)).catch(console.error).finally(() => setLoadingDb(false));
+  }, [bumpVersion]);
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -234,41 +241,41 @@ export default function Dashboard() {
     )[0];
   }, [position]);
 
-  const activeCount = potholes.filter(p => p.status === "reported").length;
-  const dangerCount = potholes.filter(p => p.severity === "high").length;
-  
+  const activeCount = dbPotholes.filter(p => p.status === "reported").length;
+  const dangerCount = dbPotholes.filter(p => p.severity === "high").length;
+
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
-  const fixedThisMonthCount = potholes.filter(p => {
+  const fixedThisMonthCount = dbPotholes.filter(p => {
     if (p.status !== "repaired" || !p.repairedAt) return false;
     const d = new Date(p.repairedAt);
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
   }).length;
 
   const nearYouCount = position
-    ? potholes.filter(p => p.status !== "repaired" && distanceMeters(p.position, position) < 1000).length
+    ? dbPotholes.filter(p => p.status !== "repaired" && distanceMeters(p.position, position) < 1000).length
     : 0;
 
-  const breachedCount = potholes.filter(p => p.status !== "repaired" && p.slaBreached).length;
-  const reoccurredCount = potholes.filter((p) => p.reoccurred).length;
-  const totalFixedCount = potholes.filter(p => p.status === "repaired").length;
+  const breachedCount = dbPotholes.filter(p => p.status !== "repaired" && p.slaBreached).length;
+  const reoccurredCount = dbPotholes.filter((p) => p.reoccurred).length;
+  const totalFixedCount = dbPotholes.filter(p => p.status === "repaired").length;
   const improperRepairPercent = totalFixedCount === 0 ? 0 : Math.round((reoccurredCount / totalFixedCount) * 100);
 
-  const open = potholes.filter((p) => p.status !== "repaired");
+  const open = dbPotholes.filter((p) => p.status !== "repaired");
 
-  const handleRepair = (id: string) => {
-    markPotholeRepaired(id);
+  const handleRepair = async (id: string) => {
+    await updatePotholeStatus(id, "repaired");
     bumpVersion();
   };
 
   const recent = useMemo(
-    () => [...potholes].sort((a, b) => +new Date(b.reportedAt) - +new Date(a.reportedAt)).slice(0, 6),
-    []
+    () => [...dbPotholes].sort((a, b) => +new Date(b.reportedAt) - +new Date(a.reportedAt)).slice(0, 6),
+    [dbPotholes]
   );
 
   const citizenInsights = useMemo(
-    () => generateCitizenInsights(position, detectedLocality),
-    [position, detectedLocality]
+    () => generateCitizenInsights(position, detectedLocality, dbPotholes),
+    [position, detectedLocality, dbPotholes]
   );
 
   const supervisorInsights = useMemo(
@@ -359,7 +366,7 @@ export default function Dashboard() {
         {isSupervisor ? (
           // Supervisor Stats — raw performance metrics
           <>
-            <StatCard label={t("total_potholes")} value={open.length} hint={`${potholes.length} all-time`} icon={Activity} />
+            <StatCard label={t("total_potholes")} value={open.length} hint={`${dbPotholes.length} all-time`} icon={Activity} />
             <StatCard label="Repaired" value={totalFixedCount} hint="Total fixed" icon={CheckCircle} tone="good" />
             <StatCard label="Reoccurring" value={reoccurredCount} hint={`${improperRepairPercent}% improper`} icon={RotateCcw} tone="critical" />
             <StatCard label={t("sla_breached")} value={breachedCount} hint="Escalation needed" icon={TrendingUp} tone="warn" />
@@ -384,7 +391,7 @@ export default function Dashboard() {
               <Link to="/map">Full map →</Link>
             </Button>
           </div>
-          <PotholeMap height="500px" showHeatmap />
+          {loadingDb ? <div className="h-[500px] bg-muted/20 animate-pulse rounded-xl" /> : <PotholeMap potholes={dbPotholes} height="500px" showHeatmap />}
         </div>
 
         {/* Right Panel — MODE-SPLIT */}
@@ -403,8 +410,8 @@ export default function Dashboard() {
                       style={{
                         borderLeftColor:
                           i.tone === "critical" ? "hsl(var(--severity-critical))" :
-                          i.tone === "warn" ? "hsl(var(--severity-high))" :
-                          "hsl(var(--secondary))",
+                            i.tone === "warn" ? "hsl(var(--severity-high))" :
+                              "hsl(var(--secondary))",
                       }}
                     >
                       <div className="font-medium text-sm">{i.title}</div>
