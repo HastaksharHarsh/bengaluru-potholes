@@ -14,9 +14,12 @@ const navItems = [
   { to: "/wards", icon: Trophy, key: "nav_wards" as const, label: "Wards" },
 ];
 
+import { useNavigate } from "react-router-dom";
+
 export function AppShell() {
   const { t, lang, setLang } = useI18n();
-  const { isSupervisor, toggleSupervisor } = useAppStore();
+  const { isSupervisor, logout } = useAppStore();
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -67,10 +70,10 @@ export function AppShell() {
               "w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
               isSupervisor && "bg-sidebar-primary/20 text-sidebar-primary font-semibold"
             )}
-            onClick={toggleSupervisor}
+            onClick={() => isSupervisor ? logout() : navigate("/supervisor/login")}
           >
             <Shield className="h-4 w-4 mr-2" />
-            {isSupervisor ? "Supervisor Mode (ON)" : "Supervisor Mode"}
+            {isSupervisor ? "Logout (Supervisor)" : "Supervisor Mode"}
           </Button>
           <Button
             variant="ghost"
@@ -97,7 +100,7 @@ export function AppShell() {
         </div>
         <div className="flex items-center gap-1.5">
           <button
-            onClick={toggleSupervisor}
+            onClick={() => isSupervisor ? logout() : navigate("/supervisor/login")}
             className={cn(
               "flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-smooth",
               isSupervisor

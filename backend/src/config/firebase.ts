@@ -9,20 +9,37 @@ const serviceAccountPath = path.resolve(
   process.env.GOOGLE_APPLICATION_CREDENTIALS || "./service-account.json"
 );
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const serviceAccount = require(serviceAccountPath);
+import { localDb } from "./local-db";
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    projectId: process.env.GCP_PROJECT_ID || "rentatulya6000",
-  });
+let serviceAccount;
+let isMockMode = false;
+
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  serviceAccount = require(serviceAccountPath);
+} catch (err) {
+  console.warn("⚠️  service-account.json not found. Backend will run in MOCK MODE with local data.");
+  isMockMode = true;
 }
 
-export const db = admin.firestore();
+if (!admin.apps.length && !isMockMode) {
+  try {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      projectId: process.env.GCP_PROJECT_ID || "rentatulya6000",
+    });
+  } catch (err) {
+    console.error("❌ Failed to initialize Firebase:", err);
+    isMockMode = true;
+  }
+}
+
+export const db = isMockMode ? (localDb as any) : admin.firestore();
 export const firebaseAdmin = admin;
+export const MOCK_MODE = isMockMode;
 
 // Set Firestore settings
-db.settings({ ignoreUndefinedProperties: true });
-
-console.log("✅ Firebase Admin SDK initialized for project:", process.env.GCP_PROJECT_ID);
+if (!isMockMode) {
+  db.settings({ ignoreUndefinedProperties: true });
+  console.log("✅ Firebase Admin SDK initialized for project:", process.env.GCP_PROJECT_ID);
+}

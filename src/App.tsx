@@ -12,6 +12,7 @@ import WardRanking from "./pages/WardRanking";
 import LocalityDetail from "./pages/LocalityDetail";
 import WardDetail from "./pages/WardDetail";
 import Reports from "./pages/Reports";
+import SupervisorLogin from "./pages/SupervisorLogin";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ const App = () => (
       <Sonner position="top-center" />
       <BrowserRouter>
         <Routes>
+          <Route path="/supervisor/login" element={<SupervisorLogin />} />
           <Route element={<AppShell />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/report" element={<ReportPothole />} />

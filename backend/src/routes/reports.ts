@@ -2,6 +2,7 @@
 import { Router, Request, Response } from "express";
 import { generateWeeklyReport, getWeeklyReports, clearOldReports } from "../services/report.service";
 import { requireSupervisor, AuthRequest } from "../middleware/auth";
+import { MOCK_MODE } from "../config/firebase";
 
 const router = Router();
 

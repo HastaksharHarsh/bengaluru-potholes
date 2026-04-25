@@ -25,14 +25,19 @@ export default function Reports() {
   const [reports, setReports] = useState<WeeklyReport[]>([]);
   const [selectedReport, setSelectedReport] = useState<WeeklyReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchWeeklyReports()
       .then((data) => {
         setReports(data);
         if (data.length > 0) setSelectedReport(data[0]);
+        setError(null);
       })
-      .catch(console.error)
+      .catch((err) => {
+        console.error(err);
+        setError("Failed to connect to the reports server. Please ensure the backend is running on port 3001.");
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -75,10 +80,41 @@ export default function Reports() {
     toast.success("Report downloaded successfully as text/PDF");
   };
 
-  if (loading || !selectedReport) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error || (!loading && reports.length === 0)) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] space-y-6 text-center px-4 animate-fade-in">
+        <div className="bg-primary/10 p-6 rounded-full">
+          <FileText className="h-12 w-12 text-primary opacity-50" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-display font-bold">No Reports Yet</h2>
+          <p className="text-muted-foreground max-w-sm mx-auto">
+            {error || "Weekly road audits are generated automatically. Report potholes to see them reflected in the next audit."}
+          </p>
+        </div>
+        <div className="flex gap-4">
+          <Button onClick={() => window.location.reload()} variant="outline" className="rounded-xl">
+            Check Again
+          </Button>
+          <Button 
+            onClick={() => {
+              toast.info("Generating fresh report from live data...");
+              fetch("http://localhost:3001/api/reports/refresh", { method: "POST" })
+                .then(() => window.location.reload());
+            }}
+            className="gradient-hero text-white rounded-xl shadow-elegant"
+          >
+            Generate Report Now
+          </Button>
+        </div>
       </div>
     );
   }

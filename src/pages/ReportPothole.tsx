@@ -102,15 +102,6 @@ export default function ReportPothole() {
     }
   }, [position]);
 
-  useEffect(() => {
-    // Auto-open camera on mobile
-    if (step === "capture" && !photo && fileRef.current) {
-      const t = setTimeout(() => {
-        try { fileRef.current?.click(); } catch (e) { }
-      }, 100);
-      return () => clearTimeout(t);
-    }
-  }, [step, photo]);
 
   const handleFile = async (file: File) => {
     setPhotoFile(file);

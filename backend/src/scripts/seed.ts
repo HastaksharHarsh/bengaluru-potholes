@@ -111,6 +111,20 @@ function generatePotholes(): Pothole[] {
 async function seed() {
   console.log("🌱 Starting database seed...\n");
 
+  console.log("📌 Clearing existing reports...");
+  const repSnap = await db.collection("weekly_reports").get();
+  const repBatch = db.batch();
+  repSnap.docs.forEach((doc: any) => repBatch.delete(doc.ref));
+  await repBatch.commit();
+  console.log(`   ✅ Cleared ${repSnap.size} reports`);
+
+  console.log("📌 Clearing existing potholes...");
+  const potSnap = await db.collection("potholes").get();
+  const potBatch = db.batch();
+  potSnap.docs.forEach((doc: any) => potBatch.delete(doc.ref));
+  await potBatch.commit();
+  console.log(`   ✅ Cleared ${potSnap.size} potholes`);
+
   // Seed wards
   console.log("📌 Seeding wards...");
   const wardBatch = db.batch();
@@ -134,6 +148,7 @@ async function seed() {
   await db.collection("config").doc("weather").set(weather);
   console.log("   ✅ Weather config seeded");
 
+/*
   // Seed potholes (batches of 500 — Firestore limit)
   console.log("📌 Generating and seeding potholes...");
   const potholes = generatePotholes();
@@ -148,19 +163,7 @@ async function seed() {
     console.log(`   📦 Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${chunk.length} potholes`);
   }
   console.log(`   ✅ ${potholes.length} potholes seeded`);
-
-  // Seed mock past reports
-  console.log("📌 Seeding past weekly reports...");
-  const pastReports = [
-    { id: "rep-1", week: "Week 1 April", totalReported: 45, totalFixed: 12, pending: 33, reoccurring: 4, severityBreakdown: { low: 10, medium: 15, high: 15, critical: 5 }, topLocality: "Jayanagar", worstLocality: "Whitefield", aiSummary: "Early April saw moderate reporting volume. Jayanagar teams demonstrated high efficiency in closing minor reports.", generatedAt: "2026-04-07T10:00:00Z" },
-    { id: "rep-2", week: "Week 2 April", totalReported: 62, totalFixed: 28, pending: 34, reoccurring: 2, severityBreakdown: { low: 20, medium: 20, high: 12, critical: 10 }, topLocality: "Indiranagar", worstLocality: "Outer Ring Road", aiSummary: "Heavy rains in the second week led to a surge in new reports on Outer Ring Road. Indiranagar maintains the best resolution rate.", generatedAt: "2026-04-14T10:00:00Z" },
-  ];
-  const repBatch = db.batch();
-  for (const r of pastReports) {
-    repBatch.set(db.collection("weekly_reports").doc(r.id), r);
-  }
-  await repBatch.commit();
-  console.log(`   ✅ ${pastReports.length} weekly reports seeded`);
+*/
 
   console.log("\n🎉 Database seed complete!");
   process.exit(0);

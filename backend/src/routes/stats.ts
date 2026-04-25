@@ -1,6 +1,7 @@
 // ─── Dashboard stats routes ─────────────────────────────────────────────────
 import { Router, Request, Response } from "express";
 import { getDashboardStats } from "../services/stats.service";
+import { MOCK_MODE } from "../config/firebase";
 
 const router = Router();
 

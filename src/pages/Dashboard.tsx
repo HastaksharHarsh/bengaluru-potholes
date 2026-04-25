@@ -30,6 +30,7 @@ import {
   TriangleAlert,
   Navigation,
   TrendingDown,
+  FileText,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -155,6 +156,66 @@ function generateCitizenInsights(
   return alerts.sort((a, b) => priority[b.tone] - priority[a.tone]);
 }
 
+// ── Supervisor Tasks Widget ──────────────────────────────────────────────────
+function SupervisorTasks({ 
+  potholes, 
+  onRepair 
+}: { 
+  potholes: Pothole[], 
+  onRepair: (id: string) => void 
+}) {
+  const urgent = potholes
+    .filter(p => p.status !== "repaired" && (p.severity === "critical" || p.severity === "high"))
+    .sort((a, b) => {
+      // Prioritize critical over high
+      if (a.severity === "critical" && b.severity !== "critical") return -1;
+      if (a.severity !== "critical" && b.severity === "critical") return 1;
+      return b.severityScore - a.severityScore;
+    })
+    .slice(0, 5);
+
+  if (urgent.length === 0) return null;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-base lg:text-lg font-display font-semibold flex items-center gap-2">
+          <TriangleAlert className="h-4 w-4 text-destructive" /> Urgent Repair Tasks
+        </h2>
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-destructive/10 text-destructive uppercase tracking-wider">
+          Action Required
+        </span>
+      </div>
+      <div className="grid gap-3">
+        {urgent.map((p) => (
+          <Card key={p.id} className="p-4 border-l-4 border-l-destructive shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <SeverityBadge severity={p.severity} />
+                  <span className="text-sm font-bold truncate">{p.road}</span>
+                </div>
+                <div className="text-xs text-muted-foreground flex items-center gap-2">
+                  <MapPin className="h-3 w-3" />
+                  {p.localityId} • {p.daysOpen} days open
+                </div>
+              </div>
+              <Button 
+                onClick={() => onRepair(p.id)}
+                size="sm" 
+                className="gradient-hero text-white rounded-xl h-9 px-4 shadow-sm"
+              >
+                Fix Now
+              </Button>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // ── Supervisor Insight Generator ─────────────────────────────────────────────
 type SupervisorAlert = {
   title: string;
@@ -181,7 +242,7 @@ function generateSupervisorInsights(
     const localCount = open.filter((p) => p.localityId === detectedLocality.id).length;
     out.push({
       title: `${detectedLocality.name} (nearest)`,
-      body: `${localCount} active potholes in this ward — tap report to add a new one.`,
+      body: `${localCount} active potholes in this ward.`,
       tone: "info",
     });
   }
@@ -190,7 +251,7 @@ function generateSupervisorInsights(
   if (breached.length > 0) {
     out.push({
       title: `${breached.length} SLA Breaches`,
-      body: "These potholes exceeded the resolution deadline — prioritise for immediate dispatch.",
+      body: "These potholes exceeded the resolution deadline.",
       tone: "critical",
     });
   }
@@ -316,12 +377,18 @@ export default function Dashboard() {
         <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_20%_30%,white,transparent_50%)]" />
         <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-6">
           <div>
-            <div className="text-[10px] uppercase tracking-[0.2em] text-white/80 mb-1">{t("tagline")}</div>
-            <h1 className="text-2xl lg:text-4xl font-display font-bold leading-tight">{t("app_name")}</h1>
+            <div className="text-[10px] uppercase tracking-[0.2em] text-white/80 mb-1">
+              {isSupervisor ? "Supervisor Dashboard • BBMP" : t("tagline")}
+            </div>
+            <h1 className="text-2xl lg:text-4xl font-display font-bold leading-tight">
+              {isSupervisor ? "Welcome, Administrator" : t("app_name")}
+            </h1>
             <p className="text-white/80 mt-1 text-xs lg:text-base hidden sm:block">
-              {lang === "en"
-                ? "Real-time pothole intelligence — anonymous, AI-prioritized, ward-accountable."
-                : "ಬೆಂಗಳೂರಿಗಾಗಿ — ಅನಾಮಧೇಯ ವರದಿ, AI ಆದ್ಯತೆಯಿಂದ."}
+              {isSupervisor 
+                ? "Manage pothole repairs, monitor ward performance, and track SLA compliance across Bengaluru."
+                : (lang === "en"
+                  ? "Real-time pothole intelligence — anonymous, AI-prioritized, ward-accountable."
+                  : "ಬೆಂಗಳೂರಿಗಾಗಿ — ಅನಾಮಧೇಯ ವರದಿ, AI ಆದ್ಯತೆಯಿಂದ.")}
             </p>
             {/* Location pill inline on mobile */}
             <div className="flex items-center gap-2 mt-2 lg:hidden">
@@ -335,14 +402,26 @@ export default function Dashboard() {
               </span>
             </div>
             <div className="flex gap-2 mt-4">
-              <Button asChild size="lg" className="bg-white text-primary hover:bg-white/90 shadow-elegant h-12 px-5 text-sm font-semibold rounded-xl">
-                <Link to="/report">
-                  <Camera className="h-4 w-4 mr-2" />
-                  {t("hero_cta")}
-                </Link>
-              </Button>
+              {!isSupervisor ? (
+                <Button asChild size="lg" className="bg-white text-primary hover:bg-white/90 shadow-elegant h-12 px-5 text-sm font-semibold rounded-xl">
+                  <Link to="/report">
+                    <Camera className="h-4 w-4 mr-2" />
+                    {t("hero_cta")}
+                  </Link>
+                </Button>
+              ) : (
+                <Button asChild size="lg" className="bg-white text-primary hover:bg-white/90 shadow-elegant h-12 px-5 text-sm font-semibold rounded-xl">
+                  <Link to="/map">
+                    <Navigation className="h-4 w-4 mr-2" />
+                    Dispatch Repairs
+                  </Link>
+                </Button>
+              )}
               <Button asChild size="lg" variant="outline" className="bg-white/10 text-white border-white/30 hover:bg-white/20 h-12 px-5 text-sm rounded-xl hidden sm:flex">
-                <Link to="/map">{t("nav_map")}</Link>
+                <Link to="/reports">
+                  <FileText className="h-4 w-4 mr-2" />
+                  View Reports
+                </Link>
               </Button>
             </div>
           </div>
@@ -409,6 +488,8 @@ export default function Dashboard() {
         <div className="flex flex-col gap-5 h-full">
           {isSupervisor ? (
             <>
+              <SupervisorTasks potholes={dbPotholes} onRepair={handleRepair} />
+              
               <div className="space-y-3">
                 <h2 className="text-base lg:text-lg font-display font-semibold flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-primary" /> AI Insights
