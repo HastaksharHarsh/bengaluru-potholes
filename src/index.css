@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Bengaluru Civic Tech — Smart City Command Center
+   All colors HSL. Inspired by official BBMP red, monsoon teal, and night-mode dashboards.
+*/
+
+@layer base {
+  :root {
+    --background: 220 24% 98%;
+    --foreground: 222 32% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 32% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 32% 12%;
+
+    /* BBMP-inspired deep crimson */
+    --primary: 354 78% 46%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 354 90% 62%;
+
+    /* Monsoon teal — secondary brand */
+    --secondary: 188 78% 38%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 220 16% 94%;
+    --muted-foreground: 222 14% 42%;
+
+    --accent: 38 96% 52%;
+    --accent-foreground: 222 32% 12%;
+
+    --destructive: 0 84% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Severity tokens (used across map, lists, badges) */
+    --severity-critical: 0 84% 52%;
+    --severity-high: 24 95% 53%;
+    --severity-medium: 42 96% 52%;
+    --severity-low: 142 64% 42%;
+
+    /* Health score */
+    --health-good: 142 64% 42%;
+    --health-warn: 38 96% 52%;
+    --health-bad: 0 84% 52%;
+
+    --border: 220 16% 88%;
+    --input: 220 16% 90%;
+    --ring: 354 78% 46%;
+
+    --radius: 0.75rem;
+
+    /* Gradients */
+    --gradient-hero: linear-gradient(135deg, hsl(354 78% 46%) 0%, hsl(24 95% 53%) 100%);
+    --gradient-monsoon: linear-gradient(135deg, hsl(188 78% 38%) 0%, hsl(222 60% 28%) 100%);
+    --gradient-night: linear-gradient(180deg, hsl(222 40% 10%) 0%, hsl(222 36% 14%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(220 24% 98%) 100%);
+
+    /* Shadows */
+    --shadow-elegant: 0 8px 30px -10px hsl(354 78% 46% / 0.25);
+    --shadow-soft: 0 2px 12px -4px hsl(222 32% 12% / 0.08);
+    --shadow-glow: 0 0 40px hsl(354 90% 62% / 0.35);
+
+    --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+    --sidebar-background: 222 36% 12%;
+    --sidebar-foreground: 220 16% 88%;
+    --sidebar-primary: 354 78% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 222 30% 18%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 222 30% 20%;
+    --sidebar-ring: 354 78% 50%;
+  }
+
+  .dark {
+    --background: 222 36% 8%;
+    --foreground: 220 16% 92%;
+    --card: 222 32% 12%;
+    --card-foreground: 220 16% 92%;
+    --popover: 222 32% 12%;
+    --popover-foreground: 220 16% 92%;
+    --primary: 354 82% 56%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 188 70% 44%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 222 24% 18%;
+    --muted-foreground: 220 12% 64%;
+    --accent: 38 96% 56%;
+    --accent-foreground: 222 32% 12%;
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 222 24% 20%;
+    --input: 222 24% 20%;
+    --ring: 354 82% 56%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer utilities {
+  .gradient-hero { background: var(--gradient-hero); }
+  .gradient-monsoon { background: var(--gradient-monsoon); }
+  .gradient-night { background: var(--gradient-night); }
+  .shadow-elegant { box-shadow: var(--shadow-elegant); }
+  .shadow-soft { box-shadow: var(--shadow-soft); }
+  .shadow-glow { box-shadow: var(--shadow-glow); }
+  .transition-smooth { transition: var(--transition-smooth); }
+
+  .pulse-ring {
+    animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  }
+  @keyframes pulse-ring {
+    0% { box-shadow: 0 0 0 0 hsl(var(--severity-critical) / 0.6); }
+    70% { box-shadow: 0 0 0 16px hsl(var(--severity-critical) / 0); }
+    100% { box-shadow: 0 0 0 0 hsl(var(--severity-critical) / 0); }
+  }
+}

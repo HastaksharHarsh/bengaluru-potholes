@@ -1,0 +1,43 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { AppShell } from "@/components/layout/AppShell";
+import Dashboard from "./pages/Dashboard";
+import ReportPothole from "./pages/ReportPothole";
+import LiveMap from "./pages/LiveMap";
+import Localities from "./pages/Localities";
+import WardRanking from "./pages/WardRanking";
+import LocalityDetail from "./pages/LocalityDetail";
+import WardDetail from "./pages/WardDetail";
+import Reports from "./pages/Reports";
+import NotFound from "./pages/NotFound.tsx";
+
+const queryClient = new QueryClient();
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner position="top-center" />
+      <BrowserRouter>
+        <Routes>
+          <Route element={<AppShell />}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/report" element={<ReportPothole />} />
+            <Route path="/map" element={<LiveMap />} />
+            <Route path="/localities" element={<Localities />} />
+            <Route path="/localities/:id" element={<LocalityDetail />} />
+            <Route path="/wards" element={<WardRanking />} />
+            <Route path="/wards/:id" element={<WardDetail />} />
+            <Route path="/reports" element={<Reports />} />
+          </Route>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
+
+export default App;
