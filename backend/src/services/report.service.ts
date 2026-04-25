@@ -52,3 +52,14 @@ export async function getWeeklyReports(): Promise<WeeklyReport[]> {
   const snap = await db.collection("weekly_reports").orderBy("generatedAt", "desc").limit(10).get();
   return snap.docs.map((d) => d.data() as WeeklyReport);
 }
+
+/**
+ * Delete all existing weekly reports (clear stale/seeded data).
+ */
+export async function clearOldReports(): Promise<void> {
+  const snap = await db.collection("weekly_reports").get();
+  const batch = db.batch();
+  snap.docs.forEach((doc) => batch.delete(doc.ref));
+  await batch.commit();
+  console.log(`🗑️  Cleared ${snap.size} old weekly reports from Firestore`);
+}

@@ -24,6 +24,9 @@ export async function createPothole(data: {
   reoccurred?: boolean;
   improperRepair?: boolean;
   linkedPreviousId?: string | null;
+  trafficScore?: number;
+  speedLimitKph?: number;
+  congestionRatio?: number;
 }): Promise<Pothole> {
   const id = `ph-${Date.now()}-${uuidv4().slice(0, 8)}`;
   const slaHours = getSlaHours(data.severity);
@@ -51,6 +54,9 @@ export async function createPothole(data: {
     improperRepair: data.improperRepair || false,
     linkedPreviousId: data.linkedPreviousId || null,
     voiceNote: data.voiceNote,
+    trafficScore: data.trafficScore,
+    speedLimitKph: data.speedLimitKph,
+    congestionRatio: data.congestionRatio,
   };
 
   await db.collection(COLLECTION).doc(id).set(pothole);
@@ -235,8 +241,8 @@ export async function upvotePothole(id: string): Promise<{ upvotes: number; seve
   else if (newScore >= 60) newSeverity = "high";
   else if (newScore >= 40) newSeverity = "medium";
 
-  await ref.update({ 
-    upvotes: newUpvotes, 
+  await ref.update({
+    upvotes: newUpvotes,
     reports: newReports,
     severityScore: newScore,
     severity: newSeverity
