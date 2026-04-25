@@ -1,6 +1,8 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { PotholeMap } from "@/components/maps/PotholeMap";
-import { potholes, Severity } from "@/lib/bengaluru-data";
+import { Severity } from "@/lib/bengaluru-data";
+import { fetchPotholes } from "@/lib/api";
+import { Pothole } from "../../backend/src/models/types";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useI18n } from "@/lib/i18n";
@@ -10,9 +12,16 @@ export default function LiveMap() {
   const [heatmap, setHeatmap] = useState(true);
   const [filter, setFilter] = useState<Severity | "all">("all");
 
+  const [dbPotholes, setDbPotholes] = useState<Pothole[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPotholes().then(res => setDbPotholes(res.potholes)).finally(() => setLoading(false));
+  }, []);
+
   const data = useMemo(
-    () => (filter === "all" ? potholes : potholes.filter((p) => p.severity === filter)),
-    [filter]
+    () => (filter === "all" ? dbPotholes : dbPotholes.filter((p) => p.severity === filter)),
+    [filter, dbPotholes]
   );
 
   return (
@@ -44,7 +53,13 @@ export default function LiveMap() {
         </div>
       </div>
 
-      <PotholeMap potholes={data} showHeatmap={heatmap} height="75vh" />
+      {loading ? (
+        <div className="h-[75vh] rounded-xl bg-muted/20 animate-pulse border border-border flex items-center justify-center">
+          Loading Live Google Cloud Data...
+        </div>
+      ) : (
+        <PotholeMap potholes={data} showHeatmap={heatmap} height="75vh" />
+      )}
 
       <Card className="p-4">
         <div className="flex flex-wrap items-center gap-4 text-xs">
@@ -56,9 +71,9 @@ export default function LiveMap() {
                 style={{
                   backgroundColor:
                     s === "critical" ? "hsl(var(--severity-critical))" :
-                    s === "high" ? "hsl(var(--severity-high))" :
-                    s === "medium" ? "hsl(var(--severity-medium))" :
-                    "hsl(var(--severity-low))",
+                      s === "high" ? "hsl(var(--severity-high))" :
+                        s === "medium" ? "hsl(var(--severity-medium))" :
+                          "hsl(var(--severity-low))",
                 }}
               />
               {s}

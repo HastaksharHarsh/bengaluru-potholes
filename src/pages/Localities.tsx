@@ -1,7 +1,9 @@
-import { localities, potholes, getWard } from "@/lib/bengaluru-data";
+import { localities, getWard } from "@/lib/bengaluru-data";
+import { fetchPotholes } from "@/lib/api";
+import { Pothole } from "../../backend/src/models/types";
 import { Card } from "@/components/ui/card";
 import { useI18n } from "@/lib/i18n";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 
@@ -9,14 +11,19 @@ export default function Localities() {
   const { t, lang } = useI18n();
   const navigate = useNavigate();
 
+  const [dbPotholes, setDbPotholes] = useState<Pothole[]>([]);
+  useEffect(() => {
+    fetchPotholes().then(res => setDbPotholes(res.potholes));
+  }, []);
+
   const rows = useMemo(() => {
     return localities.map((l) => {
-      const items = potholes.filter((p) => p.localityId === l.id);
+      const items = dbPotholes.filter((p) => p.localityId === l.id);
       const totalPotholes = items.length;
-      
+
       const fixed = items.filter((p) => p.status === "repaired");
       const resolutionRate = totalPotholes === 0 ? 0 : Math.round((fixed.length / totalPotholes) * 100);
-      
+
       let avgSeverityLabel = "Low";
       if (totalPotholes > 0) {
         const avgScore = items.reduce((acc, p) => acc + p.severityScore, 0) / totalPotholes;
@@ -25,11 +32,11 @@ export default function Localities() {
       }
 
       // In this mock data, each locality maps to 1 ward. We will display 1 for accuracy, or if we had multiple wards per locality, we'd count them here.
-      const totalWards = 1; 
+      const totalWards = 1;
 
       return { l, totalPotholes, resolutionRate, avgSeverityLabel, totalWards };
     });
-  }, []);
+  }, [dbPotholes]);
 
   return (
     <div className="p-4 lg:p-8 space-y-5 animate-fade-in">
@@ -40,8 +47,8 @@ export default function Localities() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {rows.map((r) => (
-          <Card 
-            key={r.l.id} 
+          <Card
+            key={r.l.id}
             className="p-4 cursor-pointer hover:border-primary/50 hover:shadow-md transition-smooth flex flex-col justify-between"
             onClick={() => navigate(`/localities/${r.l.id}`)}
           >
@@ -59,9 +66,8 @@ export default function Localities() {
                 <div className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">Reports</div>
               </div>
               <div className="flex flex-col items-center justify-center">
-                <div className={`text-sm font-bold ${
-                  r.avgSeverityLabel === "High" ? "text-destructive" : r.avgSeverityLabel === "Medium" ? "text-amber-500" : "text-health-good"
-                }`}>
+                <div className={`text-sm font-bold ${r.avgSeverityLabel === "High" ? "text-destructive" : r.avgSeverityLabel === "Medium" ? "text-amber-500" : "text-health-good"
+                  }`}>
                   {r.avgSeverityLabel}
                 </div>
                 <div className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">Severity</div>

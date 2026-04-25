@@ -66,12 +66,16 @@ export async function reportPothole(data: {
   size: SizeBucket;
   image?: File;
   voiceNote?: string;
+  severity?: string;
+  severityScore?: number;
 }): Promise<{ pothole?: Pothole; severity?: AISeverityResult; duplicate: boolean; isReoccurrence?: boolean; potholeId?: string; upvotes?: number }> {
   const formData = new FormData();
   formData.append("lat", String(data.lat));
   formData.append("lng", String(data.lng));
   formData.append("size", data.size);
   if (data.voiceNote) formData.append("voiceNote", data.voiceNote);
+  if (data.severity) formData.append("severity", data.severity);
+  if (data.severityScore !== undefined) formData.append("severityScore", String(data.severityScore));
   if (data.image) formData.append("image", data.image);
 
   return fetchAPI("/potholes", {

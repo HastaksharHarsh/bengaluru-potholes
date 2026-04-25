@@ -1,88 +1,15 @@
-import { GoogleMap, MarkerF, InfoWindowF } from "@react-google-maps/api";
+import { GoogleMap, MarkerF, InfoWindowF, useJsApiLoader } from "@react-google-maps/api";
 import { useEffect, useState } from "react";
 import { BENGALURU_CENTER, Pothole, potholes as allPotholes, severityColor, getLocality, getWard } from "@/lib/bengaluru-data";
 import { Badge } from "@/components/ui/badge";
 import { GoogleMapsKeyPrompt, useGoogleMapsKey } from "./GoogleMapsKey";
 import { PotholeStatusBadge } from "@/components/PotholeStatusBadge";
 
-const LIBS = ["places"];
-const GMAPS_SCRIPT_ID = "gmaps-script";
+const LIBS: ("places")[] = ["places"];
 
-let googleMapsLoadPromise: Promise<void> | null = null;
-let googleMapsLoadKey: string | null = null;
+// Removed custom loadGoogleMaps and useGoogleMapsScript
+// We will use useJsApiLoader from @react-google-maps/api in PotholeMapInner instead
 
-function loadGoogleMaps(apiKey: string) {
-  const key = apiKey.trim();
-
-  if (!key) return Promise.reject(new Error("Google Maps API key is required."));
-  if (window.google?.maps?.Map) return Promise.resolve();
-  if (googleMapsLoadPromise && googleMapsLoadKey === key) return googleMapsLoadPromise;
-
-  const existing = document.getElementById(GMAPS_SCRIPT_ID) as HTMLScriptElement | null;
-  if (existing && existing.dataset.apiKey !== key) {
-    existing.remove();
-    googleMapsLoadPromise = null;
-    googleMapsLoadKey = null;
-  }
-
-  const current = document.getElementById(GMAPS_SCRIPT_ID) as HTMLScriptElement | null;
-  if (current && current.dataset.apiKey === key) {
-    googleMapsLoadPromise = new Promise((resolve, reject) => {
-      current.addEventListener("load", () => resolve(), { once: true });
-      current.addEventListener("error", () => reject(new Error("Google Maps failed to load.")), { once: true });
-    });
-    googleMapsLoadKey = key;
-    return googleMapsLoadPromise;
-  }
-
-  googleMapsLoadPromise = new Promise((resolve, reject) => {
-    const params = new URLSearchParams({
-      key,
-      v: "weekly",
-      loading: "async",
-      libraries: LIBS.join(","),
-      language: "en",
-      region: "IN",
-      auth_referrer_policy: "origin",
-    });
-    const script = document.createElement("script");
-    script.id = GMAPS_SCRIPT_ID;
-    script.dataset.apiKey = key;
-    script.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Google Maps failed to load."));
-    document.head.appendChild(script);
-  });
-  googleMapsLoadKey = key;
-  return googleMapsLoadPromise;
-}
-
-function useGoogleMapsScript(apiKey: string) {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [loadError, setLoadError] = useState<Error | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    setIsLoaded(false);
-    setLoadError(null);
-
-    loadGoogleMaps(apiKey)
-      .then(() => {
-        if (active) setIsLoaded(true);
-      })
-      .catch((error) => {
-        if (active) setLoadError(error instanceof Error ? error : new Error("Google Maps failed to load."));
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [apiKey]);
-
-  return { isLoaded, loadError };
-}
 
 const containerStyle = { width: "100%", height: "100%" };
 
@@ -128,7 +55,12 @@ function PotholeMapInner({
   apiKey,
   onResetKey,
 }: Props & { apiKey: string; onResetKey: () => void }) {
-  const { isLoaded, loadError } = useGoogleMapsScript(apiKey);
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: apiKey,
+    libraries: LIBS,
+  });
+
   const [selected, setSelected] = useState<Pothole | null>(null);
 
   if (loadError) {
@@ -161,23 +93,23 @@ function PotholeMapInner({
         }}
       >
         {potholes.map((p) => (
-            <MarkerF
-              key={p.id}
-              position={p.position}
-              onClick={() => {
-                setSelected(p);
-                onSelect?.(p);
-              }}
-              icon={{
-                path: window.google?.maps?.SymbolPath?.CIRCLE || 0,
-                scale: p.severity === "critical" ? 9 : p.severity === "high" ? 7 : 6,
-                fillColor: p.status === "repaired" ? "#10b981" : severityColor(p.severity),
-                fillOpacity: showHeatmap ? 0.3 : 0.9,
-                strokeColor: p.reoccurred ? "#ef4444" : "#fff",
-                strokeWeight: p.reoccurred ? 3 : (showHeatmap ? 0 : 2),
-              }}
-            />
-          ))}
+          <MarkerF
+            key={p.id}
+            position={p.position}
+            onClick={() => {
+              setSelected(p);
+              onSelect?.(p);
+            }}
+            icon={{
+              path: window.google?.maps?.SymbolPath?.CIRCLE || 0,
+              scale: p.severity === "critical" ? 9 : p.severity === "high" ? 7 : 6,
+              fillColor: p.status === "repaired" ? "#10b981" : severityColor(p.severity),
+              fillOpacity: showHeatmap ? 0.3 : 0.9,
+              strokeColor: p.reoccurred ? "#ef4444" : "#fff",
+              strokeWeight: p.reoccurred ? 3 : (showHeatmap ? 0 : 2),
+            }}
+          />
+        ))}
 
         {selected && (
           <InfoWindowF position={selected.position} onCloseClick={() => setSelected(null)}>

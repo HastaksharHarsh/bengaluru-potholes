@@ -14,7 +14,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 // POST /api/potholes — Submit a new pothole report
 router.post("/", upload.single("image"), async (req: Request, res: Response) => {
   try {
-    const { lat, lng, size, voiceNote } = req.body;
+    const { lat, lng, size, voiceNote, severity, severityScore } = req.body;
     if (!lat || !lng || !size) {
       res.status(400).json({ error: "lat, lng, and size are required" });
       return;
@@ -53,9 +53,19 @@ router.post("/", upload.single("image"), async (req: Request, res: Response) => 
       imageUrl = await uploadPotholeImage(req.file.buffer, tempId, req.file.mimetype);
     }
 
-    // Compute AI severity
-    const allNearby = await potholeService.findNearbyPotholes(latitude, longitude, 100);
-    const severity = await aiService.computeSeverity(sizeBucket, { lat: latitude, lng: longitude }, nearest, allNearby);
+    // Compute or trust AI severity
+    let finalSeverity: Severity = "low";
+    let finalSeverityScore = 0;
+
+    if (severity && severityScore) {
+      finalSeverity = severity as Severity;
+      finalSeverityScore = parseFloat(severityScore);
+    } else {
+      const allNearby = await potholeService.findNearbyPotholes(latitude, longitude, 100);
+      const sevRes = await aiService.computeSeverity(sizeBucket, { lat: latitude, lng: longitude }, nearest, allNearby);
+      finalSeverity = sevRes.severity;
+      finalSeverityScore = sevRes.score;
+    }
 
     const isReoccurrence = repairedNearby.length > 0;
 
@@ -64,8 +74,8 @@ router.post("/", upload.single("image"), async (req: Request, res: Response) => 
       wardId: nearest.wardId,
       lat: latitude,
       lng: longitude,
-      severity: severity.severity,
-      severityScore: severity.score,
+      severity: finalSeverity,
+      severityScore: finalSeverityScore,
       size: sizeBucket,
       road: "Unknown Road",
       imageUrl,

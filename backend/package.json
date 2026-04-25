@@ -4,7 +4,9 @@
   "description": "Backend API for Bengaluru Road Watch pothole intelligence platform",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev:node": "tsx watch src/index.ts",
+    "dev:python": "cd model && python server.py",
+    "dev": "concurrently \"npm run dev:node\" \"npm run dev:python\"",
     "build": "tsc",
     "start": "node dist/index.js",
     "seed": "tsx src/scripts/seed.ts"
@@ -29,6 +31,7 @@
     "@types/multer": "^1.4.12",
     "@types/node": "^22.16.5",
     "@types/uuid": "^10.0.0",
+    "concurrently": "^9.2.1",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }

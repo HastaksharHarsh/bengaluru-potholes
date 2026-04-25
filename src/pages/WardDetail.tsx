@@ -1,5 +1,8 @@
 import { useParams, Link } from "react-router-dom";
-import { getWard, potholes } from "@/lib/bengaluru-data";
+import { getWard } from "@/lib/bengaluru-data";
+import { fetchPotholes } from "@/lib/api";
+import { Pothole } from "../../backend/src/models/types";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, MapPin, Navigation, Calendar, AlertCircle } from "lucide-react";
@@ -12,7 +15,12 @@ export default function WardDetail() {
   const { lang } = useI18n();
 
   const ward = id ? getWard(id) : null;
-  const wardPotholes = potholes.filter((p) => p.wardId === id);
+  const [dbPotholes, setDbPotholes] = useState<Pothole[]>([]);
+  useEffect(() => {
+    fetchPotholes().then(res => setDbPotholes(res.potholes)).catch(console.error);
+  }, []);
+
+  const wardPotholes = dbPotholes.filter((p) => p.wardId === id);
 
   if (!ward) return <div className="p-8">Ward not found.</div>;
 
@@ -47,7 +55,7 @@ export default function WardDetail() {
                   <MapPin className="h-4 w-4 text-muted-foreground" />
                   {p.road}
                 </h3>
-                
+
                 <div className="space-y-1.5 mt-3">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <AlertCircle className="h-3.5 w-3.5" />

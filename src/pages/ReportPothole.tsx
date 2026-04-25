@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useI18n } from "@/lib/i18n";
 import { useVoiceRecognition } from "@/hooks/use-voice";
-import { potholes, addPothole, BENGALURU_CENTER, localities, Severity, SizeBucket } from "@/lib/bengaluru-data";
+import { reportPothole, fetchNearbyPotholes } from "@/lib/api";
+import { BENGALURU_CENTER, localities, Severity, SizeBucket, PotholeStatus } from "@/lib/bengaluru-data";
+import { Pothole } from "../../backend/src/models/types";
 import { toast } from "sonner";
 import {
   Camera,
@@ -21,6 +23,15 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SeverityBadge } from "@/components/SeverityBadge";
+import { useAppStore } from "@/lib/store";
+
+export type YOLOAIResult = {
+  severity: Severity;
+  score: number;
+  reasons: string[];
+  detections: any[];
+  image_size?: { width: number; height: number };
+};
 
 type Step = "capture" | "size" | "voice" | "review" | "success";
 
@@ -39,41 +50,29 @@ function nearestLocality(pos: { lat: number; lng: number }) {
   return [...localities].sort((a, b) => distanceMeters(pos, a.center) - distanceMeters(pos, b.center))[0];
 }
 
-function aiSeverity(size: SizeBucket, pos: { lat: number; lng: number }): { severity: Severity; score: number; reasons: string[] } {
-  const loc = nearestLocality(pos);
-  const sizeWeight = size === "large" ? 35 : size === "medium" ? 20 : 8;
-  const trafficWeight = loc.trafficDensity * 0.4;
-  const arterialBonus = loc.isArterial ? 25 : 5;
-  const nearby = potholes.filter((p) => distanceMeters(p.position, pos) < 60);
-  const clusterBoost = Math.min(15, nearby.length * 2);
-  const score = Math.min(100, Math.round(sizeWeight + trafficWeight + arterialBonus + clusterBoost));
-  let severity: Severity = "low";
-  if (score >= 80) severity = "critical";
-  else if (score >= 60) severity = "high";
-  else if (score >= 40) severity = "medium";
-  const reasons = [
-    `Size: ${size} (+${sizeWeight})`,
-    `Traffic density ${loc.trafficDensity}/100 (+${Math.round(trafficWeight)})`,
-    loc.isArterial ? "Arterial road (+25)" : "Local road (+5)",
-    nearby.length ? `Cluster: ${nearby.length} nearby reports (+${clusterBoost})` : "No nearby reports",
-  ];
-  return { severity, score, reasons };
-}
+// Model fetch happens dynamically, so we will remove the synchronous `aiSeverity` function
+// and handle ML prediction via fetch in the component.
 
 const SIZE_META: Record<SizeBucket, { emoji: string; desc: string; descKn: string; color: string }> = {
-  small:  { emoji: "🔵", desc: "< 30 cm — Minor hazard",      descKn: "30 ಸೆಂ.ಮೀ ಗಿಂತ ಕಡಿಮೆ",   color: "border-blue-400 bg-blue-50 dark:bg-blue-950/30" },
-  medium: { emoji: "🟠", desc: "30–60 cm — Moderate damage",  descKn: "30–60 ಸೆಂ.ಮೀ",             color: "border-orange-400 bg-orange-50 dark:bg-orange-950/30" },
-  large:  { emoji: "🔴", desc: "> 60 cm — Serious hazard",    descKn: "60 ಸೆಂ.ಮೀ ಮೇಲೆ — ಅಪಾಯ",  color: "border-red-400 bg-red-50 dark:bg-red-950/30" },
+  small: { emoji: "🔵", desc: "< 30 cm — Minor hazard", descKn: "30 ಸೆಂ.ಮೀ ಗಿಂತ ಕಡಿಮೆ", color: "border-blue-400 bg-blue-50 dark:bg-blue-950/30" },
+  medium: { emoji: "🟠", desc: "30–60 cm — Moderate damage", descKn: "30–60 ಸೆಂ.ಮೀ", color: "border-orange-400 bg-orange-50 dark:bg-orange-950/30" },
+  large: { emoji: "🔴", desc: "> 60 cm — Serious hazard", descKn: "60 ಸೆಂ.ಮೀ ಮೇಲೆ — ಅಪಾಯ", color: "border-red-400 bg-red-50 dark:bg-red-950/30" },
 };
 
 export default function ReportPothole() {
   const { t, lang } = useI18n();
   const [step, setStep] = useState<Step>("capture");
   const [photo, setPhoto] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [position, setPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [size, setSize] = useState<SizeBucket | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [yoloResult, setYoloResult] = useState<any | null>(null);
+  const [analyzingImage, setAnalyzingImage] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const { saveReport } = useAppStore();
+
+  const [nearbyPotholes, setNearbyPotholes] = useState<Pothole[]>([]);
 
   const voice = useVoiceRecognition(lang);
 
@@ -97,52 +96,137 @@ export default function ReportPothole() {
   }, []);
 
   useEffect(() => {
+    if (position) {
+      fetchNearbyPotholes(position.lat, position.lng, 30).then(setNearbyPotholes).catch(console.error);
+    }
+  }, [position]);
+
+  useEffect(() => {
     // Auto-open camera on mobile
     if (step === "capture" && !photo && fileRef.current) {
       const t = setTimeout(() => {
-        try { fileRef.current?.click(); } catch(e) {}
+        try { fileRef.current?.click(); } catch (e) { }
       }, 100);
       return () => clearTimeout(t);
     }
   }, [step, photo]);
 
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
+    setPhotoFile(file);
     const reader = new FileReader();
     reader.onload = (e) => setPhoto(e.target?.result as string);
     reader.readAsDataURL(file);
+
+    // Automatically trigger YOLO model inference
+    if (file) {
+      setAnalyzingImage(true);
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch("http://localhost:8000/detect", {
+          method: "POST",
+          body: formData,
+        });
+        if (res.ok) {
+          const mlData = await res.json();
+          let image_size = mlData.image_size;
+          setYoloResult({ detections: mlData.detections, image_size, count: mlData.pothole_count });
+        } else {
+          toast.error("Model analysis failed. Is the Python server running?");
+        }
+      } catch (e) {
+        console.error(e);
+        toast.error("Could not reach model server (localhost:8000). Ensure it is running.");
+      } finally {
+        setAnalyzingImage(false);
+      }
+    }
   };
 
-  const ai = position && size ? aiSeverity(size, position) : null;
-  const nearby = position ? potholes.filter((p) => distanceMeters(p.position, position) < 30 && p.status !== "repaired") : [];
+  const nearby = nearbyPotholes.filter((p) => p.status !== "repaired");
   const isDuplicate = nearby.length > 0;
   const detectedLocality = position ? nearestLocality(position) : null;
-  const repairedNearby = position ? potholes.filter((p) => distanceMeters(p.position, position) < 30 && p.status === "repaired") : [];
+  const repairedNearby = nearbyPotholes.filter((p) => p.status === "repaired");
   const isReoccurrence = repairedNearby.length > 0;
+
+  // Dynamically calculate priority AI
+  let ai: YOLOAIResult | null = null;
+  if (position && (size || yoloResult)) {
+    let reasons: string[] = [];
+    let score = 0;
+    let severity: Severity = "low";
+
+    let userScore = size === "large" ? 85 : size === "medium" ? 65 : 45;
+    let mlScore = 0;
+
+    if (yoloResult && yoloResult.detections?.length > 0) {
+      const best = yoloResult.detections[0];
+      const mlSev = best.severity || "minor_pothole";
+
+      let sevSevValue = best.severity_score || 0;
+      if (sevSevValue >= 0.05) {
+        mlScore = 80 + Math.min(20, ((sevSevValue - 0.05) / 0.15) * 20);
+      } else if (sevSevValue >= 0.015) {
+        mlScore = 60 + ((sevSevValue - 0.015) / 0.035) * 19;
+      } else if (sevSevValue > 0) {
+        mlScore = 40 + (sevSevValue / 0.015) * 19;
+      }
+
+      reasons.push(`AI Analysis (${mlSev.replace('_', ' ')})`);
+      reasons.push(`AI Confidence: ${(best.confidence * 100).toFixed(1)}%`);
+    }
+
+    if (mlScore > 0 && userScore > 0) {
+      score = Math.round((mlScore + userScore) / 2);
+      reasons.push(`Normalized severity blending AI and User Input (${size})`);
+    } else if (mlScore > 0) {
+      score = Math.round(mlScore);
+    } else {
+      score = userScore;
+      reasons.push(`Manual Size Selection: ${size}`);
+    }
+
+    severity = score >= 80 ? "critical" : score >= 60 ? "high" : "medium";
+
+    ai = { severity, score, reasons, detections: yoloResult?.detections || [], image_size: yoloResult?.image_size };
+  }
 
   const submit = () => {
     setSubmitting(true);
-    setTimeout(() => {
-      if (!isDuplicate && position && size && detectedLocality && ai) {
-        addPothole({
-          id: `ph-${Date.now()}`,
-          localityId: detectedLocality.id,
-          wardId: detectedLocality.wardId,
-          position,
-          severity: ai.severity,
-          severityScore: ai.score,
-          size,
-          status: "reported",
-          reports: 1,
-          reportedAt: new Date().toISOString(),
-          daysOpen: 0,
-          road: "Unknown Road",
-          upvotes: 0,
-          imageUrl: photo || undefined,
-          slaHours: ai.severity === "critical" ? 48 : ai.severity === "high" ? 120 : 240,
-          slaBreached: false,
-          reoccurred: isReoccurrence,
-          improperRepair: isReoccurrence,
-          linkedPreviousId: isReoccurrence ? repairedNearby[0].id : null,
+    setTimeout(async () => {
+      if (!isDuplicate && position && ai && detectedLocality) {
+        const generatedId = `ph-${Date.now()}`;
+
+        // Normalize size representation against the final cross-checked AI severity
+        const normalizedSize: SizeBucket = ai.severity === "critical" ? "large" : ai.severity === "high" ? "medium" : "small";
+
+        try {
+          await reportPothole({
+            lat: position.lat,
+            lng: position.lng,
+            size: normalizedSize,
+            voiceNote: voice.transcript,
+            image: photoFile || undefined,
+            severity: ai.severity,
+            severityScore: ai.score,
+          });
+        } catch (e) {
+          console.error("Failed to submit to backend", e);
+          toast.error("Failed to report pothole to cloud, checking backend connectivity.");
+          setSubmitting(false);
+          return;
+        }
+
+        // Save the comprehensive JSON report format to store
+        saveReport({
+          potholeId: generatedId,
+          timestamp: new Date().toISOString(),
+          location: position,
+          localityDetails: detectedLocality,
+          yoloModelResults: ai,
+          userInputs: { size, voiceNote: voice.transcript },
+          duplicateStatus: isDuplicate,
+          improperRepairFlags: isReoccurrence
         });
       }
 
@@ -193,8 +277,8 @@ export default function ReportPothole() {
                       idx < currentIdx
                         ? "bg-primary text-white"
                         : idx === currentIdx
-                        ? "gradient-hero text-white shadow-md ring-2 ring-primary/30"
-                        : "bg-muted text-muted-foreground"
+                          ? "gradient-hero text-white shadow-md ring-2 ring-primary/30"
+                          : "bg-muted text-muted-foreground"
                     )}
                   >
                     {idx < currentIdx ? <Check className="h-4 w-4" /> : idx + 1}
@@ -273,12 +357,12 @@ export default function ReportPothole() {
             )}
 
             <Button
-              disabled={!photo}
+              disabled={!photo || analyzingImage}
               onClick={() => setStep("size")}
               size="lg"
               className="w-full h-14 text-base font-semibold rounded-2xl"
             >
-              Continue →
+              {analyzingImage ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyzing Model...</> : "Continue →"}
             </Button>
           </div>
         )}
@@ -376,8 +460,8 @@ export default function ReportPothole() {
                   {voice.listening
                     ? "🔴 Recording — tap to stop"
                     : voice.transcript
-                    ? "✓ Recorded — tap to re-record"
-                    : "Tap mic to describe"}
+                      ? "✓ Recorded — tap to re-record"
+                      : "Tap mic to describe"}
                 </div>
                 {!voice.supported && (
                   <div className="text-xs text-destructive mt-1">Browser doesn't support speech. Try Chrome.</div>
@@ -420,7 +504,36 @@ export default function ReportPothole() {
             {photo && (
               <div className="relative rounded-2xl overflow-hidden border border-border h-40">
                 <img src={photo} alt="Pothole" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
+                {yoloResult?.image_size && yoloResult.detections.map((det: any, i: number) => (
+                  <svg
+                    key={i}
+                    className="absolute inset-0 w-full h-full pointer-events-none drop-shadow-md"
+                    viewBox={`0 0 ${yoloResult.image_size!.width} ${yoloResult.image_size!.height}`}
+                    preserveAspectRatio="xMidYMid slice"
+                  >
+                    <rect
+                      x={det.bbox.x1}
+                      y={det.bbox.y1}
+                      width={det.bbox.x2 - det.bbox.x1}
+                      height={det.bbox.y2 - det.bbox.y1}
+                      fill="none"
+                      stroke="#ef4444"
+                      strokeWidth={Math.max(4, yoloResult.image_size!.width / 200)}
+                      rx="8"
+                    />
+                    <text
+                      x={det.bbox.x1 + 4}
+                      y={Math.max(20, det.bbox.y1 - 10)}
+                      fill="#ef4444"
+                      fontSize={Math.max(16, yoloResult.image_size!.width / 25)}
+                      fontWeight="bold"
+                      style={{ textShadow: "0px 1px 3px rgba(0,0,0,0.8)" }}
+                    >
+                      {Math.round(det.confidence * 100)}%
+                    </text>
+                  </svg>
+                ))}
               </div>
             )}
 
@@ -436,8 +549,8 @@ export default function ReportPothole() {
                 </div>
               </div>
               <div className="mt-3 space-y-1">
-                {ai.reasons.map((r) => (
-                  <div key={r} className="flex items-start gap-2 text-xs text-muted-foreground">
+                {ai.reasons.map((r, i) => (
+                  <div key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
                     <span className="text-primary mt-0.5">•</span>
                     {r}
                   </div>
@@ -468,19 +581,15 @@ export default function ReportPothole() {
             )}
 
             {/* Summary Grid */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className={`grid ${voice.transcript ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
               <div className="p-3 rounded-xl bg-muted/40 border border-border">
                 <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Location</div>
                 <div className="font-semibold text-sm mt-1 truncate">
                   {lang === "kn" ? detectedLocality.nameKn : detectedLocality.name}
                 </div>
               </div>
-              <div className="p-3 rounded-xl bg-muted/40 border border-border">
-                <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Size</div>
-                <div className="font-semibold text-sm capitalize mt-1">{size} {SIZE_META[size!]?.emoji}</div>
-              </div>
               {voice.transcript && (
-                <div className="col-span-2 p-3 rounded-xl bg-muted/40 border border-border">
+                <div className="p-3 rounded-xl bg-muted/40 border border-border">
                   <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Voice Note</div>
                   <div className="text-sm mt-1 line-clamp-2">{voice.transcript}</div>
                 </div>
@@ -553,9 +662,9 @@ export default function ReportPothole() {
               <Button asChild size="lg" className="w-full h-14 rounded-2xl text-base font-bold shadow-elegant">
                 <Link to="/">Back to Dashboard</Link>
               </Button>
-              <Button 
-                variant="outline" 
-                size="lg" 
+              <Button
+                variant="outline"
+                size="lg"
                 className="w-full h-14 rounded-2xl text-base font-bold bg-transparent"
                 onClick={() => {
                   setStep("capture");
