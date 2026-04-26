@@ -1,5 +1,5 @@
-// ─── Vertex AI / Gemini 2.5 Pro client ──────────────────────────────────────
-import { VertexAI } from "@google-cloud/vertexai";
+// ─── Google GenAI / Gemini client (replaces deprecated @google-cloud/vertexai) ──
+import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -7,15 +7,15 @@ dotenv.config();
 const PROJECT_ID = process.env.GCP_PROJECT_ID || "rentatulya6000";
 const REGION = process.env.GCP_REGION || "asia-south1";
 
-// Initialize Vertex AI — uses GOOGLE_APPLICATION_CREDENTIALS automatically
-export const vertexAI = new VertexAI({
+// Initialize Google GenAI with Vertex AI backend
+// Uses Application Default Credentials (GOOGLE_APPLICATION_CREDENTIALS)
+export const genAI = new GoogleGenAI({
+  vertexai: true,
   project: PROJECT_ID,
   location: REGION,
 });
 
-// Gemini 2.5 Pro model — used for all AI tasks
-export const geminiModel = vertexAI.getGenerativeModel({
-  model: "gemini-2.5-pro",
-});
+// Model name — used across all AI calls
+export const GEMINI_MODEL = "gemini-2.5-pro";
 
-console.log(`✅ Vertex AI initialized: Gemini 2.5 Pro (${REGION})`);
+console.log(`✅ Google GenAI initialized: ${GEMINI_MODEL} (${REGION})`);

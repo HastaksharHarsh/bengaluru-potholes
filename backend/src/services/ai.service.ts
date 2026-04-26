@@ -1,5 +1,5 @@
-// ─── AI Service — Gemini 2.5 Pro integration ────────────────────────────────
-import { geminiModel } from "../config/vertexai";
+// ─── AI Service — Gemini 2.5 Pro integration (via @google/genai) ────────────
+import { genAI, GEMINI_MODEL } from "../config/vertexai";
 import type {
   AISeverityResult,
   AIImageAnalysis,
@@ -33,7 +33,8 @@ Respond in this exact JSON format, nothing else:
   "description": "A medium-sized pothole on an asphalt road surface with crumbled edges."
 }`;
 
-    const result = await geminiModel.generateContent({
+    const result = await genAI.models.generateContent({
+      model: GEMINI_MODEL,
       contents: [
         {
           role: "user",
@@ -50,8 +51,7 @@ Respond in this exact JSON format, nothing else:
       ],
     });
 
-    const response = result.response;
-    const text = response?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const text = result.text ?? "";
 
     // Extract JSON from response (handle markdown code blocks)
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -159,11 +159,12 @@ Write in a professional civic report tone. Highlight key concerns and positive t
 Focus on actionable insights for BBMP supervisors.
 Return ONLY the summary text, no JSON or formatting.`;
 
-    const result = await geminiModel.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
+    const result = await genAI.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: prompt,
     });
 
-    const text = result.response?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const text = result.text ?? "";
     return text.trim() || "Unable to generate AI summary for this period.";
   } catch (err: any) {
     console.error("⚠️ Gemini summary unavailable, using local generation:", err.message);
@@ -208,11 +209,12 @@ Respond ONLY with a valid JSON object in this exact structure:
   "recommendations": ["string"]
 }`;
 
-    const result = await geminiModel.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
+    const result = await genAI.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: prompt,
     });
 
-    const text = result.response?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const text = result.text ?? "";
     
     // Extract JSON from response
     const jsonMatch = text.match(/\{[\s\S]*\}/);
