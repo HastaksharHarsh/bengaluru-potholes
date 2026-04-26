@@ -11,7 +11,7 @@ const parseBool = (val: string | undefined): boolean => {
 
 export const env = {
   // Application settings
-  APP_NAME: import.meta.env.VITE_APP_NAME || "Bengaluru Road Watch",
+  APP_NAME: import.meta.env.VITE_APP_NAME || "PlotHole",
   
   // API Keys
   GEMINI_API_KEY: import.meta.env.VITE_GEMINI_API_KEY || "",

@@ -6,7 +6,7 @@ export type Lang = "en" | "kn";
 type Dict = Record<string, { en: string; kn: string }>;
 
 const dict: Dict = {
-  app_name: { en: "Bengaluru Road Watch", kn: "ಬೆಂಗಳೂರು ರಸ್ತೆ ನೋಟ" },
+  app_name: { en: "PlotHole", kn: "ಬೆಂಗಳೂರು ರಸ್ತೆ ನೋಟ" },
   tagline: { en: "Smart City Pothole Intelligence • BBMP", kn: "ಸ್ಮಾರ್ಟ್ ಸಿಟಿ ಪಾಟ್‌ಹೋಲ್ ಇಂಟೆಲಿಜೆನ್ಸ್ • ಬಿಬಿಎಂಪಿ" },
   nav_dashboard: { en: "Dashboard", kn: "ಡ್ಯಾಶ್‌ಬೋರ್ಡ್" },
   nav_progressions: { en: "Progressions", kn: "ಪ್ರಗತಿ ಶ್ರೇಣಿ" },
@@ -43,6 +43,8 @@ const dict: Dict = {
   avg_resolution: { en: "Avg Resolution", kn: "ಸರಾಸರಿ ಪರಿಹಾರ" },
   sla_breached: { en: "SLA Breached", kn: "SLA ಉಲ್ಲಂಘನೆ" },
   monsoon_alert: { en: "Monsoon Alert", kn: "ಮಳೆಗಾಲದ ಎಚ್ಚರಿಕೆ" },
+  nav_more: { en: "More", kn: "ಇನ್ನಷ್ಟು" },
+  nav_settings: { en: "Settings", kn: "ಸೆಟ್ಟಿಂಗ್‌ಗಳು" },
 };
 
 export function t(key: keyof typeof dict, lang: Lang) {

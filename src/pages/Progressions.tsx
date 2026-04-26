@@ -23,7 +23,9 @@ import {
   Loader2,
   ExternalLink,
   CheckCircle2,
-  UserPlus
+  UserPlus,
+  ChevronRight,
+  ArrowRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -35,12 +37,10 @@ export default function Progressions() {
 
   useEffect(() => {
     const load = () => {
-      // Don't set loading state on poll, only on first load or filter change
       fetchProgressions({
         severity: filterSeverity === "all" ? undefined : filterSeverity as any
       })
         .then(res => {
-          console.log("📥 Progressions Data:", res);
           setData(res);
         })
         .catch(err => {
@@ -52,7 +52,7 @@ export default function Progressions() {
     setLoading(true);
     load();
 
-    const interval = setInterval(load, 30000); // Poll every 30s
+    const interval = setInterval(load, 30000); 
     return () => clearInterval(interval);
   }, [version, filterSeverity]);
 
@@ -61,173 +61,136 @@ export default function Progressions() {
     bumpVersion();
   };
 
-  if (!isSupervisor) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[80vh] p-8 text-center">
-        <div className="h-16 w-16 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mb-4">
-          <ShieldAlert className="h-8 w-8" />
-        </div>
-        <h1 className="text-2xl font-bold">Access Restricted</h1>
-        <p className="text-muted-foreground mt-2 max-w-md">
-          The Pothole Progressions module is only available to authorized municipal staff and supervisors.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <div className="p-4 lg:p-8 space-y-6 animate-fade-in">
+    <div className="p-[24px] lg:p-[28px] space-y-[20px] animate-fade-in pb-[120px] lg:pb-[28px]">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="hero-banner flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-display font-bold flex items-center gap-3">
-            <TrendingUp className="h-8 w-8 text-primary" /> Pothole Progressions
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Monitor unresolved potholes that are worsening over time based on traffic and age.
-          </p>
+          <div className="hero-banner-tag">SUPERVISOR MODULE · BBMP</div>
+          <h1 className="hero-banner-title">Pothole Progressions</h1>
+          <p className="hero-banner-subtitle">Predictive monitoring of unresolved road hazards and deterioration patterns.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="hidden sm:flex">
-            <Download className="h-4 w-4 mr-2" /> Export CSV
+        <div className="flex gap-3 shrink-0">
+          <Button variant="outline" size="sm" className="h-10 px-4 rounded-[10px] font-[600] text-gray-700 bg-white shadow-sm border-gray-200 hover:bg-gray-50 transition-all">
+            <Download className="h-4 w-4 mr-2" /> Export
           </Button>
-          <Button size="sm" className="gradient-hero text-white">
+          <Button size="sm" className="h-10 px-4 rounded-[10px] font-[600] text-white bg-[#1a73e8] hover:bg-[#1557b0] shadow-sm transition-all">
             <Bell className="h-4 w-4 mr-2" /> Send Alerts
           </Button>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <section className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <StatCard 
-          label="Progressing" 
-          value={data?.stats.total ?? 0} 
-          hint="Unresolved cases" 
-          icon={TrendingUp} 
-        />
-        <StatCard 
-          label="Critical Cases" 
-          value={data?.stats.critical ?? 0} 
-          hint="Priority escalation" 
-          icon={AlertCircle} 
-          tone="critical" 
-        />
-        <StatCard 
-          label="Avg Days Open" 
-          value={data?.stats.avgDaysOpen ?? 0} 
-          hint="Since first report" 
-          icon={Clock} 
-          tone="warn" 
-        />
-        <StatCard 
-          label="High Risk Zones" 
-          value={data?.stats.highRiskZones ?? 0} 
-          hint="Concentrated areas" 
-          icon={MapIcon} 
-        />
-        <StatCard 
-          label="Escalated (Wk)" 
-          value={data?.stats.escalatedThisWeek ?? 0} 
-          hint="Worsened recently" 
-          icon={ArrowUpRight} 
-          tone="info"
-        />
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-[14px]">
+        {[
+          { label: "Progressing", value: data?.stats.total ?? 0, icon: TrendingUp, cardClass: "stat-card-blue", iconColor: "#1a73e8" },
+          { label: "Critical", value: data?.stats.critical ?? 0, icon: AlertCircle, cardClass: "stat-card-red", iconColor: "#dc2626" },
+          { label: "Avg Age", value: `${data?.stats.avgDaysOpen ?? 0}d`, icon: Clock, cardClass: "stat-card-yellow", iconColor: "#d97706" },
+          { label: "Hotspots", value: data?.stats.highRiskZones ?? 0, icon: MapIcon, cardClass: "stat-card-purple", iconColor: "#7c3aed" },
+        ].map((s) => (
+          <div key={s.label} className={s.cardClass}>
+            <div className="flex items-center gap-2 mb-1">
+              <s.icon className="h-[18px] w-[18px]" style={{ color: s.iconColor }} />
+              <div className="text-[22px] font-[700]" style={{ color: s.iconColor }}>{s.value}</div>
+            </div>
+            <div className="text-[12px] font-[500] text-secondary-g uppercase tracking-[0.03em]">{s.label}</div>
+          </div>
+        ))}
       </section>
 
-      {/* Filters & Content */}
+      {/* Main Grid */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Main List */}
         <div className="xl:col-span-2 space-y-4">
-          <Card className="p-4">
-            <div className="flex items-center justify-between mb-4">
+          <Card className="bg-white border-[rgba(0,0,0,0.06)] shadow-[0_1px_3px_rgba(0,0,0,0.06)] rounded-[12px] overflow-hidden">
+            <div className="p-[10px_16px] bg-[#f8f9fa] rounded-[10px] flex items-center justify-between mx-4 mt-4">
               <div className="flex items-center gap-3">
-                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Filter className="h-4 w-4 text-gray-400" />
                 <select 
-                  className="bg-transparent text-sm font-medium focus:outline-none"
+                  className="bg-transparent text-[14px] font-[500] text-primary-g focus:outline-none"
                   value={filterSeverity}
                   onChange={(e) => setFilterSeverity(e.target.value)}
                 >
-                  <option value="all">All Severities</option>
+                  <option value="all">Filter: all hazards</option>
                   <option value="critical">Critical Only</option>
                   <option value="high">High Risk</option>
-                  <option value="medium">Medium Risk</option>
                 </select>
+                {data?.stats.escalatedThisWeek > 0 && (
+                  <span className="g-chip bg-[#fce8e6] text-[#c5221f] text-[11px] font-[500] uppercase ml-2 px-2 py-0.5">
+                    {data.stats.escalatedThisWeek} Worsening
+                  </span>
+                )}
               </div>
-              <div className="text-xs text-muted-foreground">
-                Showing {data?.potholes.length ?? 0} active progressions
+              <div className="text-[12px] font-[500] px-[12px] py-[4px] rounded-[20px] bg-[#e8f0fe] text-[#1a73e8] uppercase tracking-[0.02em]">
+                {data?.potholes.length ?? 0} ACTIVE TRACKS
               </div>
             </div>
 
             {loading ? (
-              <div className="flex flex-col items-center justify-center py-20 gap-3">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">Analysing deterioration patterns...</p>
+              <div className="flex flex-col items-center justify-center py-24 gap-3">
+                <Loader2 className="h-10 w-10 animate-spin text-blue-400" />
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Running deteriorating analysis…</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="border-b text-muted-foreground text-left">
-                      <th className="pb-3 font-medium">Pothole & Location</th>
-                      <th className="pb-3 font-medium text-center">Age (Days)</th>
-                      <th className="pb-3 font-medium text-center">Progression</th>
-                      <th className="pb-3 font-medium text-center">Risk Level</th>
-                      <th className="pb-3 font-medium text-right">Actions</th>
+                    <tr className="bg-gray-50/50">
+                      <th className="py-3 px-6 text-[10px] font-bold uppercase text-gray-400 tracking-wider">Hazard & Location</th>
+                      <th className="py-3 px-4 text-[10px] font-bold uppercase text-gray-400 tracking-wider text-center">Age</th>
+                      <th className="py-3 px-4 text-[10px] font-bold uppercase text-gray-400 tracking-wider text-center">Progression</th>
+                      <th className="py-3 px-4 text-[10px] font-bold uppercase text-gray-400 tracking-wider text-center">Risk Level</th>
+                      <th className="py-3 px-6 text-[10px] font-bold uppercase text-gray-400 tracking-wider text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y">
+                  <tbody className="divide-y divide-gray-50">
                     {data?.potholes.map((p: any) => {
                       const loc = getLocality(p.localityId);
                       return (
-                        <tr key={p.id} className="group hover:bg-muted/30 transition-colors">
-                          <td className="py-4">
-                            <div className="font-semibold">{p.road}</div>
-                            <div className="text-xs text-muted-foreground">{loc.name} • Ward {getWard(p.wardId).number}</div>
+                        <tr key={p.id} className="hover:bg-surface-muted transition-colors">
+                          <td className="py-[14px] px-6">
+                            <div className="text-[14px] font-[500] text-primary-g">{p.road}</div>
+                            <div className="text-[12px] text-secondary-g font-[400] mt-0.5">{loc.name} • Ward {getWard(p.wardId).number}</div>
                           </td>
-                          <td className="py-4 text-center font-mono">
-                            <Badge variant="outline" className={cn(
-                              p.daysOpen >= 45 ? "border-red-500 text-red-600 bg-red-50" :
-                              p.daysOpen >= 30 ? "border-orange-500 text-orange-600 bg-orange-50" :
-                              "border-border"
+                          <td className="py-[14px] px-4 text-center">
+                            <span className={cn(
+                                "text-[10px] font-[600] px-2 py-0.5 rounded-[20px] tabular-nums",
+                                p.daysOpen >= 30 ? "bg-[#fce8e6] text-[#c5221f]" : "bg-[#f1f3f4] text-[#5f6368]"
                             )}>
                               {p.daysOpen}d
-                            </Badge>
+                            </span>
                           </td>
-                          <td className="py-4 text-center">
-                            <div className="flex flex-col items-center gap-1">
-                              <div className="flex items-center gap-1 text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
-                                {p.size} <ArrowUpRight className="h-3 w-3" /> {p.projectedSize}
-                              </div>
-                              <div className="h-1.5 w-16 bg-muted rounded-full overflow-hidden">
-                                <div className={cn(
-                                  "h-full transition-all",
-                                  p.riskLevel === 'critical' ? "bg-red-500" :
-                                  p.riskLevel === 'high' ? "bg-orange-500" :
-                                  "bg-yellow-500"
-                                )} style={{ width: p.daysOpen >= 45 ? '100%' : `${(p.daysOpen / 45) * 100}%` }} />
-                              </div>
+                          <td className="py-[14px] px-4 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <span className={cn(
+                                "text-[10px] font-[600] px-[8px] py-[3px] rounded-[6px] uppercase",
+                                p.size !== p.projectedSize ? "bg-[#fce8e6] text-[#c5221f]" : "bg-[#f1f3f4] text-[#5f6368]"
+                              )}>
+                                {p.size}
+                              </span>
+                              <ArrowRight className="h-[14px] w-[14px] text-[#9aa0a6]" />
+                              <span className={cn(
+                                "text-[10px] font-[600] px-[8px] py-[3px] rounded-[6px] uppercase",
+                                p.size !== p.projectedSize ? "bg-[#fce8e6] text-[#c5221f]" : "bg-[#f1f3f4] text-[#5f6368]"
+                              )}>
+                                {p.projectedSize}
+                              </span>
                             </div>
                           </td>
-                          <td className="py-4 text-center">
-                            <Badge className={cn(
-                              "capitalize shadow-sm",
-                              p.riskLevel === 'critical' ? "bg-red-600 animate-pulse" :
-                              p.riskLevel === 'high' ? "bg-orange-500" :
-                              p.riskLevel === 'moderate' ? "bg-yellow-500" : "bg-green-500"
-                            )}>
-                              {p.riskLevel}
-                            </Badge>
+                          <td className="py-[14px] px-4 text-center">
+                             <span className={cn(
+                               "text-[10px] font-[500] px-[9px] py-[3px] rounded-full uppercase",
+                               p.riskLevel === 'critical' ? 'bg-[#ea4335] text-white' : 'bg-[#f1f3f4] text-[#5f6368]'
+                             )}>
+                                {p.riskLevel}
+                             </span>
                           </td>
-                          <td className="py-4 text-right">
+                          <td className="py-[14px] px-6 text-right">
                             <div className="flex items-center justify-end gap-1">
-                              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" title="Mark Fixed" onClick={() => handleAction(p.id, "repaired")}>
-                                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              <Button variant="ghost" size="icon" className="h-[34px] w-[34px] rounded-full hover:bg-[#f1f3f4] hover:text-[#34a853] text-[#9aa0a6] transition-colors" onClick={() => handleAction(p.id, "repaired")}>
+                                <CheckCircle2 className="h-[18px] w-[18px]" />
                               </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" title="Assign Team">
-                                <UserPlus className="h-4 w-4 text-primary" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
-                                <MoreHorizontal className="h-4 w-4" />
+                              <Button variant="ghost" size="icon" className="h-[34px] w-[34px] rounded-full hover:bg-[#f1f3f4] hover:text-[#1a73e8] text-[#9aa0a6] transition-colors">
+                                <UserPlus className="h-[18px] w-[18px]" />
                               </Button>
                             </div>
                           </td>
@@ -236,52 +199,53 @@ export default function Progressions() {
                     })}
                   </tbody>
                 </table>
-                {data?.potholes.length === 0 && (
-                  <div className="text-center py-20">
-                    <p className="text-muted-foreground">No active progressions found for these filters.</p>
-                  </div>
-                )}
               </div>
             )}
           </Card>
         </div>
 
-        {/* Sidebar Panel */}
+        {/* Sidebar */}
         <div className="space-y-6">
-          <Card className="p-4 space-y-4">
-            <h3 className="font-display font-bold flex items-center gap-2">
-              <MapIcon className="h-4 w-4" /> Spatial Hotspots
-            </h3>
-            <div className="rounded-xl overflow-hidden border">
-              <PotholeMap 
-                potholes={data?.potholes ?? []} 
-                height="300px" 
-                showHeatmap={false} 
-              />
+          <Card className="bg-white border-border shadow-card rounded-2xl overflow-hidden">
+            <div className="p-4 border-b border-gray-50">
+               <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                 <MapIcon className="h-4 w-4 text-blue-600" /> Progression Map
+               </h3>
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Progressive potholes are concentrated in high-traffic corridors. Red markers indicate areas where deterioration is critical (30+ days).
-            </p>
+            <div className="p-0">
+               <PotholeMap potholes={data?.potholes ?? []} height="280px" showHeatmap={false} />
+            </div>
+            <div className="p-4 bg-gray-50 text-[10px] text-gray-500 font-medium leading-relaxed">
+               Showing spatial distribution of deteriorating road segments. Areas with concentrated markers require immediate dispatch intervention.
+            </div>
           </Card>
 
-          <Card className="p-4 space-y-3 bg-primary/5 border-primary/20">
-            <h3 className="font-display font-bold text-primary flex items-center gap-2">
-              <AlertCircle className="h-4 w-4" /> Notification Center
+          <div className="card-data border-none shadow-[0_1px_3px_rgba(0,0,0,0.06)] rounded-[12px] space-y-5">
+            <h3 className="text-[13px] font-[400] text-secondary-g flex items-center gap-2 m-0">
+               <Bell className="h-[16px] w-[16px] text-[#1a73e8]" /> Notifications
             </h3>
-            <div className="space-y-2">
-              {[
-                { label: "New Critical Pothole", sub: "Old Airport Rd • 3 mins ago", type: "critical" },
-                { label: "SLA Deadline Approaching", sub: "Richmond Circle • 2 cases", type: "warn" },
-                { label: "Report Surge in Koramangala", sub: "12 new entries near School zone", type: "info" }
-              ].map((n, i) => (
-                <div key={i} className="bg-background/50 p-2.5 rounded-lg border border-border/50">
-                  <div className="font-semibold text-xs">{n.label}</div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5">{n.sub}</div>
-                </div>
-              ))}
+            <div className="space-y-4">
+               {[
+                 { label: "New Critical Pothole", sub: "Old Airport Rd", time: "3m ago", color: "bg-[#ea4335]" },
+                 { label: "SLA Warning", sub: "Richmond Circle", time: "12m ago", color: "bg-[#fbbc04]" },
+                 { label: "Report Surge", sub: "Koramangala Ward", time: "1h ago", color: "bg-[#1a73e8]" }
+               ].map((n, i) => (
+                 <div key={i} className="flex gap-3 items-start">
+                    <div className={cn("h-[8px] w-[8px] rounded-full mt-[5px] shrink-0", n.color)} />
+                    <div className="flex-1 min-w-0">
+                       <div className="text-[13px] font-[500] text-primary-g truncate">{n.label}</div>
+                       <div className="flex justify-between items-center mt-0.5">
+                         <span className="text-[11px] text-secondary-g truncate">{n.sub}</span>
+                         <span className="text-[11px] text-[#9aa0a6] shrink-0 ml-2">{n.time}</span>
+                       </div>
+                    </div>
+                 </div>
+               ))}
             </div>
-            <Button variant="link" className="text-xs p-0 h-auto text-primary">View all alerts →</Button>
-          </Card>
+            <Button variant="ghost" className="w-full text-[10px] font-[600] uppercase tracking-widest text-[#1a73e8] hover:bg-[#e8f0fe] rounded-[8px]">
+               Manage Alerts <ChevronRight className="h-3 w-3 ml-1" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>
