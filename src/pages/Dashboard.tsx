@@ -6,6 +6,7 @@ import { PotholeMap } from "@/components/maps/PotholeMap";
 import { SeverityBadge } from "@/components/SeverityBadge";
 import { PotholeStatusBadge } from "@/components/PotholeStatusBadge";
 import { useI18n } from "@/lib/i18n";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   localities,
   getLocality,
@@ -162,12 +163,14 @@ function SupervisorTasks({
   onRepair 
 }: { 
   potholes: Pothole[], 
-  onRepair: (id: string) => void 
+  onRepair: (id: string) => Promise<void> 
 }) {
+  const [selectedTask, setSelectedTask] = useState<Pothole | null>(null);
+  const [repairing, setRepairing] = useState(false);
+
   const urgent = potholes
     .filter(p => p.status !== "repaired" && (p.severity === "critical" || p.severity === "high"))
     .sort((a, b) => {
-      // Prioritize critical over high
       if (a.severity === "critical" && b.severity !== "critical") return -1;
       if (a.severity !== "critical" && b.severity === "critical") return 1;
       return b.severityScore - a.severityScore;
@@ -175,6 +178,21 @@ function SupervisorTasks({
     .slice(0, 5);
 
   if (urgent.length === 0) return null;
+
+  const handleConfirmRepair = async () => {
+    if (!selectedTask) return;
+    setRepairing(true);
+    try {
+      await onRepair(selectedTask.id);
+      // Simulate small delay for UI clarity
+      await new Promise(r => setTimeout(r, 600)); 
+      setSelectedTask(null); // auto close
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setRepairing(false);
+    }
+  };
 
   return (
     <div className="space-y-3">
@@ -201,7 +219,7 @@ function SupervisorTasks({
                 </div>
               </div>
               <Button 
-                onClick={() => onRepair(p.id)}
+                onClick={() => setSelectedTask(p)}
                 size="sm" 
                 className="gradient-hero text-white rounded-xl h-9 px-4 shadow-sm"
               >
@@ -211,6 +229,51 @@ function SupervisorTasks({
           </Card>
         ))}
       </div>
+
+      <Dialog open={!!selectedTask} onOpenChange={(o) => !o && setSelectedTask(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Review Repair Ticket</DialogTitle>
+          </DialogHeader>
+          {selectedTask && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-semibold text-muted-foreground">Location:</span>
+                  <div className="font-medium mt-1">{selectedTask.road}</div>
+                </div>
+                <div>
+                  <span className="font-semibold text-muted-foreground">Locality:</span>
+                  <div className="font-medium mt-1">{selectedTask.localityId}</div>
+                </div>
+                <div>
+                  <span className="font-semibold text-muted-foreground">Reported:</span>
+                  <div className="font-medium mt-1">{new Date(selectedTask.reportedAt).toLocaleDateString()}</div>
+                </div>
+                <div>
+                  <span className="font-semibold text-muted-foreground">Severity:</span>
+                  <div className="font-medium mt-1 capitalize">{selectedTask.severity}</div>
+                </div>
+              </div>
+              <div className="bg-muted p-3 rounded-lg text-xs flex items-start gap-2">
+                <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
+                <p className="text-muted-foreground leading-relaxed">
+                  By marking this as repaired, you confirm that a field agent has successfully resolved the hazard according to municipal standards.
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" onClick={() => setSelectedTask(null)} disabled={repairing}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmRepair} disabled={repairing} className="bg-green-600 hover:bg-green-700 text-white gap-2">
+              {repairing && <Loader2 className="h-4 w-4 animate-spin" />}
+              Review and Add
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -262,7 +325,7 @@ function generateSupervisorInsights(
 // ────────────────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const { t, lang } = useI18n();
-  const { isSupervisor, bumpVersion } = useAppStore();
+  const { isSupervisor, bumpVersion, version } = useAppStore();
 
   const [position, setPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(true);
@@ -272,7 +335,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchPotholes().then(res => setDbPotholes(res.potholes)).catch(console.error).finally(() => setLoadingDb(false));
-  }, [bumpVersion]);
+  }, [version]);
 
   useEffect(() => {
     if (!navigator.geolocation) {

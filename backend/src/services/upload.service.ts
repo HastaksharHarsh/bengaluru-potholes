@@ -2,6 +2,7 @@
 import { storage, BUCKET_NAME } from "../config/storage";
 import sharp from "sharp";
 import { v4 as uuidv4 } from "uuid";
+import { MOCK_MODE } from "../config/firebase";
 
 /**
  * Upload an image buffer to Cloud Storage.
@@ -18,6 +19,13 @@ export async function uploadPotholeImage(
     .resize(1200, 900, { fit: "inside", withoutEnlargement: true })
     .webp({ quality: 80 })
     .toBuffer();
+
+  if (MOCK_MODE) {
+    // In local mock mode, we don't have GCS access. We can store as base64 data URI.
+    const base64 = processed.toString("base64");
+    console.log(`📸 Image processed locally in MOCK_MODE for pothole: ${potholeId}`);
+    return `data:image/webp;base64,${base64}`;
+  }
 
   const filename = `potholes/${potholeId}/${uuidv4()}.webp`;
   const bucket = storage.bucket(BUCKET_NAME);

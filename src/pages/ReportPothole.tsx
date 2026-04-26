@@ -70,7 +70,7 @@ export default function ReportPothole() {
   const [yoloResult, setYoloResult] = useState<any | null>(null);
   const [analyzingImage, setAnalyzingImage] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const { saveReport } = useAppStore();
+  const { saveReport, bumpVersion } = useAppStore();
 
   const [nearbyPotholes, setNearbyPotholes] = useState<Pothole[]>([]);
 
@@ -227,6 +227,9 @@ export default function ReportPothole() {
           duplicateStatus: isDuplicate,
           improperRepairFlags: isReoccurrence
         });
+        
+        // Trigger dashboard refetch
+        bumpVersion();
       }
 
       setSubmitting(false);
@@ -501,15 +504,15 @@ export default function ReportPothole() {
 
             {/* Photo Thumbnail */}
             {photo && (
-              <div className="relative rounded-2xl overflow-hidden border border-border h-40">
-                <img src={photo} alt="Pothole" className="w-full h-full object-cover" />
+              <div className="relative rounded-2xl overflow-hidden border border-border bg-black/5 flex justify-center items-center">
+                <img src={photo} alt="Pothole" className="w-full max-h-64 object-contain" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
                 {yoloResult?.image_size && yoloResult.detections.map((det: any, i: number) => (
                   <svg
                     key={i}
                     className="absolute inset-0 w-full h-full pointer-events-none drop-shadow-md"
                     viewBox={`0 0 ${yoloResult.image_size!.width} ${yoloResult.image_size!.height}`}
-                    preserveAspectRatio="xMidYMid slice"
+                    preserveAspectRatio="xMidYMid meet"
                   >
                     <rect
                       x={det.bbox.x1}

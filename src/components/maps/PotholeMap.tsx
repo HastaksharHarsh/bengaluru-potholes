@@ -1,4 +1,4 @@
-import { GoogleMap, MarkerF, InfoWindowF, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, MarkerF, InfoWindowF, useJsApiLoader, HeatmapLayerF } from "@react-google-maps/api";
 import { useEffect, useState, useMemo } from "react";
 import { BENGALURU_CENTER, Pothole, severityColor, getLocality, getWard } from "@/lib/bengaluru-data";
 import { fetchProgression, type ProgressionResult } from "@/lib/api";
@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { GoogleMapsKeyPrompt, useGoogleMapsKey } from "./GoogleMapsKey";
 import { PotholeStatusBadge } from "@/components/PotholeStatusBadge";
 
-const LIBS: ("places")[] = ["places"];
+const LIBS: ("places" | "visualization")[] = ["places", "visualization"];
 
 // Removed custom loadGoogleMaps and useGoogleMapsScript
 // We will use useJsApiLoader from @react-google-maps/api in PotholeMapInner instead
@@ -143,6 +143,14 @@ function PotholeMapInner({
     return <div style={{ height }} className="bg-muted/30 rounded-xl animate-pulse" />;
   }
 
+  // Compute heatmap weighted data points based on severity
+  const heatmapData = potholes
+    .filter(p => p.status !== "repaired")
+    .map(p => ({
+      location: new window.google.maps.LatLng(p.position.lat, p.position.lng),
+      weight: p.severity === "critical" ? 4 : p.severity === "high" ? 3 : p.severity === "medium" ? 2 : 1,
+    }));
+
   return (
     <div style={{ height }} className="rounded-xl overflow-hidden shadow-soft border border-border">
       <GoogleMap
@@ -156,6 +164,34 @@ function PotholeMapInner({
           fullscreenControl: true,
         }}
       >
+        {/* Real heatmap layer using Google Maps Visualization API */}
+        {showHeatmap && heatmapData.length > 0 && (
+          <HeatmapLayerF
+            data={heatmapData}
+            options={{
+              radius: 30,
+              opacity: 0.75,
+              gradient: [
+                "rgba(0,255,255,0)",
+                "rgba(0,255,255,1)",
+                "rgba(0,191,255,1)",
+                "rgba(0,127,255,1)",
+                "rgba(0,63,255,1)",
+                "rgba(0,0,255,1)",
+                "rgba(0,0,223,1)",
+                "rgba(0,0,191,1)",
+                "rgba(0,0,159,1)",
+                "rgba(0,0,127,1)",
+                "rgba(63,0,91,1)",
+                "rgba(127,0,63,1)",
+                "rgba(191,0,31,1)",
+                "rgba(255,0,0,1)",
+              ],
+            }}
+          />
+        )}
+
+        {/* Markers — shown in both modes but dim when heatmap is active */}
         {clusteredPotholes.map((p) => (
           <MarkerF
             key={p.id}
@@ -168,7 +204,7 @@ function PotholeMapInner({
               path: window.google?.maps?.SymbolPath?.CIRCLE || 0,
               scale: p.severity === "critical" ? 9 : p.severity === "high" ? 7 : 6,
               fillColor: p.status === "repaired" ? "#10b981" : severityColor(p.severity),
-              fillOpacity: showHeatmap ? 0.3 : 0.9,
+              fillOpacity: showHeatmap ? 0.2 : 0.9,
               strokeColor: p.reoccurred ? "#ef4444" : "#fff",
               strokeWeight: p.reoccurred ? 3 : (showHeatmap ? 0 : 2),
             }}

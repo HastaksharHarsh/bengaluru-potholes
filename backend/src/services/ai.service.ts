@@ -170,3 +170,60 @@ Return ONLY the summary text, no JSON or formatting.`;
     return `Automated summary unavailable. Key metrics: ${data.totalReported} reported, ${data.totalFixed} fixed, ${data.pending} pending, ${data.severityBreakdown.critical} critical.`;
   }
 }
+
+/**
+ * Generate comprehensive AI-powered insights for weekly reports.
+ */
+export async function generateAIInsights(data: {
+  totalReported: number;
+  totalFixed: number;
+  pending: number;
+  reoccurring: number;
+  avgFixTime: number; // in days
+  resolutionRate: number; // percentage
+  worstLocality: string;
+  bestWard: string;
+  severityDistribution: { low: number; medium: number; high: number; critical: number };
+}): Promise<import("../models/types").AIInsights> {
+  try {
+    const prompt = `Analyze the following civic report data for Bengaluru Road Watch and generate insights.
+
+Input Data:
+${JSON.stringify(data, null, 2)}
+
+Generate:
+1. Weekly summary (concise overview)
+2. Key issues (bullet points, focus on bottlenecks or critical severities)
+3. Observed patterns (trends in fixing, reoccurrence, or geographical hotspots)
+4. Recommendations (actionable steps for BBMP supervisors)
+
+Respond ONLY with a valid JSON object in this exact structure:
+{
+  "summary": "string",
+  "issues": ["string"],
+  "patterns": ["string"],
+  "recommendations": ["string"]
+}`;
+
+    const result = await geminiModel.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+    });
+
+    const text = result.response?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    
+    // Extract JSON from response
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+    throw new Error("Invalid AI response format");
+  } catch (err: any) {
+    console.error("❌ AI Insights generation failed:", err.message);
+    return {
+      summary: "AI analytics currently unavailable due to processing error.",
+      issues: ["Could not process issues."],
+      patterns: ["Could not process patterns."],
+      recommendations: ["Check raw data metrics for insights."]
+    };
+  }
+}

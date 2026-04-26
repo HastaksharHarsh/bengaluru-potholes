@@ -95,24 +95,19 @@ class LocalCollection {
     return new LocalCollection(this.name, this.items.slice(n));
   }
 
-  async count() {
+  count() {
     return { get: async () => ({ data: () => ({ count: this.items.length }) }) };
   }
 }
 
-let dbCache: any = null;
-
 function loadDb() {
-  if (dbCache) return dbCache;
   if (!fs.existsSync(DB_PATH)) {
     fs.writeFileSync(DB_PATH, JSON.stringify(DEFAULT_DB, null, 2));
-    dbCache = JSON.parse(JSON.stringify(DEFAULT_DB));
-    return dbCache;
+    return JSON.parse(JSON.stringify(DEFAULT_DB));
   }
   try {
     const raw = fs.readFileSync(DB_PATH, "utf-8");
-    dbCache = JSON.parse(raw);
-    return dbCache;
+    return JSON.parse(raw);
   } catch (e) {
     return DEFAULT_DB;
   }

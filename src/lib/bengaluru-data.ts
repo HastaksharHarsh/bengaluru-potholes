@@ -59,6 +59,17 @@ export interface WeatherSnapshot {
   monsoonRiskZones: string[]; // locality ids
 }
 
+export interface ReportTableRow {
+  id: string;
+  location: string;
+  locality: string;
+  ward: string;
+  reportedAt: string;
+  status: string;
+  daysToFix: number;
+  severity: string;
+}
+
 export interface WeeklyReport {
   id: string;
   week: string;
@@ -75,6 +86,8 @@ export interface WeeklyReport {
   topLocality: string;
   worstLocality: string;
   aiSummary: string;
+  aiInsights?: any;
+  detailedTable?: ReportTableRow[];
   generatedAt: string;
 }
 

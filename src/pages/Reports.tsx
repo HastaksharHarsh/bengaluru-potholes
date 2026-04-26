@@ -41,43 +41,38 @@ export default function Reports() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleDownloadPDF = (report: WeeklyReport) => {
-    // Simulate PDF generation
-    const content = `
-      BENGALURU ROAD WATCH - WEEKLY REPORT
-      Period: ${report.week}
-      Generated At: ${new Date(report.generatedAt).toLocaleString()}
+  const handleDownloadPDF = async (report: WeeklyReport) => {
+    try {
+      const element = document.getElementById("report-pdf-content");
+      if (!element) return;
       
-      SUMMARY:
-      - Total Reported: ${report.totalReported}
-      - Total Fixed: ${report.totalFixed}
-      - Pending: ${report.pending}
-      - Reoccurring: ${report.reoccurring}
+      const pdfHeader = document.getElementById("pdf-only-header");
+      if (pdfHeader) pdfHeader.style.display = "block";
       
-      SEVERITY BREAKDOWN:
-      - Critical: ${report.severityBreakdown.critical}
-      - High: ${report.severityBreakdown.high}
-      - Medium: ${report.severityBreakdown.medium}
-      - Low: ${report.severityBreakdown.low}
-      
-      LOCALITY PERFORMANCE:
-      - Top Performing: ${report.topLocality}
-      - Critical Attention: ${report.worstLocality}
-      
-      AI ANALYSIS:
-      ${report.aiSummary}
-    `;
+      const opt = {
+        margin: [15, 10, 15, 10], // top, left, bottom, right
+        filename: `BRW_Report_${report.week.replace(/\s+/g, "_")}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: 'css', avoid: 'tr' }
+      };
 
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `BRW_Report_${report.week.replace(/\s+/g, "_")}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    toast.success("Report downloaded successfully as text/PDF");
+      // @ts-ignore - html2pdf is dynamically imported or typeless
+      const html2pdf = (await import('html2pdf.js')).default;
+      
+      toast.info("Generating PDF, please wait...");
+      await html2pdf().set(opt).from(element).save();
+      
+      if (pdfHeader) pdfHeader.style.display = "none";
+      toast.success("Report downloaded successfully as PDF");
+    } catch (err) {
+      console.error(err);
+      if (document.getElementById("pdf-only-header")) {
+        document.getElementById("pdf-only-header")!.style.display = "none";
+      }
+      toast.error("Failed to generate PDF");
+    }
   };
 
   if (loading) {
@@ -173,7 +168,14 @@ export default function Reports() {
         </div>
 
         {/* Main Content: Selected Report */}
-        <div className="xl:col-span-3 space-y-6">
+        <div id="report-pdf-content" className="xl:col-span-3 space-y-6 bg-background rounded-xl p-1">
+          {/* Header for PDF only (hidden in UI, shown in PDF via JS toggle) */}
+          <div id="pdf-only-header" style={{ display: "none" }} className="pb-4 mb-4 border-b">
+            <h1 className="text-3xl font-bold">Bengaluru Road Watch</h1>
+            <h2 className="text-xl text-muted-foreground">Weekly Civic Report: {selectedReport.week}</h2>
+            <p className="text-sm text-muted-foreground mt-2">Generated on: {new Date(selectedReport.generatedAt).toLocaleString()}</p>
+          </div>
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card className="p-4 bg-primary/5 border-primary/10">
               <div className="flex items-center gap-2 text-primary mb-1">
@@ -233,35 +235,118 @@ export default function Reports() {
               </div>
             </Card>
 
-            <Card className="p-6 space-y-4 relative overflow-hidden">
+            <Card className="p-6 space-y-4 relative overflow-hidden flex flex-col h-full">
               <div className="absolute top-0 right-0 p-4 opacity-10">
                 <Sparkles className="h-24 w-24 text-primary" />
               </div>
               <h3 className="text-base font-bold flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-primary" />
-                AI Audit Summary
+                AI Audit Insights
               </h3>
-              <p className="text-sm leading-relaxed text-muted-foreground bg-secondary/30 p-4 rounded-xl border border-secondary/50 italic">
-                "{selectedReport.aiSummary}"
-              </p>
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <div className="space-y-1">
-                  <div className="text-[10px] font-bold uppercase text-green-600 flex items-center gap-1">
-                    <TrendingUp className="h-3 w-3" />
-                    Top Performance
+              
+              {selectedReport.aiInsights ? (
+                <div className="space-y-4 flex-1">
+                  <p className="text-sm leading-relaxed text-muted-foreground bg-secondary/30 p-4 rounded-xl border border-secondary/50 italic">
+                    "{selectedReport.aiInsights.summary}"
+                  </p>
+                  
+                  <div className="space-y-3 pt-2">
+                    {selectedReport.aiInsights.issues.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-bold uppercase text-red-500 mb-1">Key Issues</h4>
+                        <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                          {selectedReport.aiInsights.issues.map((issue, i) => <li key={i}>{issue}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                    
+                    {selectedReport.aiInsights.patterns.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-bold uppercase text-blue-500 mb-1">Observed Patterns</h4>
+                        <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                          {selectedReport.aiInsights.patterns.map((pattern, i) => <li key={i}>{pattern}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                    
+                    {selectedReport.aiInsights.recommendations.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-bold uppercase text-green-500 mb-1">Recommendations</h4>
+                        <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                          {selectedReport.aiInsights.recommendations.map((rec, i) => <li key={i}>{rec}</li>)}
+                        </ul>
+                      </div>
+                    )}
                   </div>
-                  <div className="text-sm font-semibold">{selectedReport.topLocality}</div>
                 </div>
-                <div className="space-y-1">
-                  <div className="text-[10px] font-bold uppercase text-red-600 flex items-center gap-1">
-                    <TrendingDown className="h-3 w-3" />
-                    Worst Performance
+              ) : (
+                <div className="flex-1">
+                  <p className="text-sm leading-relaxed text-muted-foreground bg-secondary/30 p-4 rounded-xl border border-secondary/50 italic">
+                    "{selectedReport.aiSummary}"
+                  </p>
+                  <div className="grid grid-cols-2 gap-4 pt-4">
+                    <div className="space-y-1">
+                      <div className="text-[10px] font-bold uppercase text-green-600 flex items-center gap-1">
+                        <TrendingUp className="h-3 w-3" />
+                        Top Performance
+                      </div>
+                      <div className="text-sm font-semibold">{selectedReport.topLocality}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-[10px] font-bold uppercase text-red-600 flex items-center gap-1">
+                        <TrendingDown className="h-3 w-3" />
+                        Worst Performance
+                      </div>
+                      <div className="text-sm font-semibold">{selectedReport.worstLocality}</div>
+                    </div>
                   </div>
-                  <div className="text-sm font-semibold">{selectedReport.worstLocality}</div>
                 </div>
-              </div>
+              )}
             </Card>
           </div>
+
+          {/* Detailed Table */}
+          {selectedReport.detailedTable && selectedReport.detailedTable.length > 0 && (
+            <Card className="p-6">
+              <h3 className="text-base font-bold mb-4">Detailed Pothole Log</h3>
+              <table className="w-full text-sm text-left border-collapse">
+                <thead>
+                  <tr className="border-b text-muted-foreground bg-muted/20">
+                    <th className="py-3 px-4 font-semibold uppercase text-[10px] tracking-wider">Location</th>
+                    <th className="py-3 px-4 font-semibold uppercase text-[10px] tracking-wider">Locality</th>
+                    <th className="py-3 px-4 font-semibold uppercase text-[10px] tracking-wider">Ward</th>
+                    <th className="py-3 px-4 font-semibold uppercase text-[10px] tracking-wider">Reported</th>
+                    <th className="py-3 px-4 font-semibold uppercase text-[10px] tracking-wider">Status</th>
+                    <th className="py-3 px-4 font-semibold uppercase text-[10px] tracking-wider">Days to Fix</th>
+                    <th className="py-3 px-4 font-semibold uppercase text-[10px] tracking-wider">Severity</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedReport.detailedTable.map((row) => (
+                    <tr key={row.id} className="border-b border-muted/50 last:border-0 hover:bg-muted/30">
+                      <td className="py-2 px-4 truncate max-w-[150px]" title={row.location}>{row.location}</td>
+                      <td className="py-2 px-4">{row.locality}</td>
+                      <td className="py-2 px-4">{row.ward}</td>
+                      <td className="py-2 px-4 whitespace-nowrap text-muted-foreground">{new Date(row.reportedAt).toLocaleDateString()}</td>
+                      <td className="py-2 px-4 capitalize font-medium">{row.status.replace("_", " ")}</td>
+                      <td className="py-2 px-4 text-center">{row.daysToFix > 0 ? row.daysToFix : "-"}</td>
+                      <td className="py-2 px-4 capitalize">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          row.severity === 'critical' ? 'bg-red-500/10 text-red-600' : 
+                          row.severity === 'high' ? 'bg-orange-500/10 text-orange-600' : 
+                          row.severity === 'medium' ? 'bg-amber-500/10 text-amber-600' : 
+                          'bg-blue-500/10 text-blue-600'
+                        }`}>
+                          {row.severity}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+          )}
+
         </div>
       </div>
     </div>

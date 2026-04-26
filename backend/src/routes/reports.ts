@@ -2,7 +2,7 @@
 import { Router, Request, Response } from "express";
 import { generateWeeklyReport, getWeeklyReports, clearOldReports } from "../services/report.service";
 import { requireSupervisor, AuthRequest } from "../middleware/auth";
-import { MOCK_MODE } from "../config/firebase";
+import { MOCK_MODE, db } from "../config/firebase";
 
 const router = Router();
 
@@ -10,9 +10,15 @@ const router = Router();
 router.get("/weekly", async (_req: Request, res: Response) => {
   try {
     const reports = await getWeeklyReports();
+    
+    // Check if the current report is stale
+    const potSnap = await db.collection("potholes").count().get();
+    const liveTotal = potSnap.data().count;
+    const currentReport = reports.length > 0 ? reports[0] : null;
 
-    // If no reports exist yet, auto-generate one from live data
-    if (reports.length === 0) {
+    // Auto-generate a fresh report if data has changed to stay dynamic!
+    if (!currentReport || currentReport.totalReported !== liveTotal) {
+      await clearOldReports();
       const now = new Date();
       const weekName = `Week of ${now.toLocaleDateString("en-IN", { month: "short", day: "numeric" })}`;
       const fresh = await generateWeeklyReport(weekName);
