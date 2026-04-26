@@ -166,13 +166,16 @@ Return ONLY the summary text, no JSON or formatting.`;
     const text = result.response?.candidates?.[0]?.content?.parts?.[0]?.text || "";
     return text.trim() || "Unable to generate AI summary for this period.";
   } catch (err: any) {
-    console.error("❌ AI Report generation failed:", err.message);
-    return `Automated summary unavailable. Key metrics: ${data.totalReported} reported, ${data.totalFixed} fixed, ${data.pending} pending, ${data.severityBreakdown.critical} critical.`;
+    console.error("⚠️ Gemini summary unavailable, using local generation:", err.message);
+    const resPct = data.totalReported > 0 ? Math.round((data.totalFixed / data.totalReported) * 100) : 0;
+    const resLabel = resPct >= 50 ? "strong" : resPct >= 25 ? "moderate" : "concerning";
+    return `Weekly road audit: ${data.totalReported} potholes tracked across Bengaluru, with ${data.totalFixed} repaired (${resPct}% resolution rate — ${resLabel}). ${data.pending} remain unresolved, including ${data.severityBreakdown.critical} critical-severity cases. ${data.worstLocality} is the worst-performing locality this period, while ${data.topLocality} leads in repairs. ${data.breachedCount} SLA breaches recorded${data.reoccurring > 0 ? `, and ${data.reoccurring} potholes have reoccurred after previous repairs` : ""}. Priority: deploy crews to critical zones and audit repair quality.`;
   }
 }
 
 /**
  * Generate comprehensive AI-powered insights for weekly reports.
+ * Falls back to intelligent local analysis when Gemini is unavailable.
  */
 export async function generateAIInsights(data: {
   totalReported: number;
@@ -218,12 +221,81 @@ Respond ONLY with a valid JSON object in this exact structure:
     }
     throw new Error("Invalid AI response format");
   } catch (err: any) {
-    console.error("❌ AI Insights generation failed:", err.message);
-    return {
-      summary: "AI analytics currently unavailable due to processing error.",
-      issues: ["Could not process issues."],
-      patterns: ["Could not process patterns."],
-      recommendations: ["Check raw data metrics for insights."]
-    };
+    console.error("⚠️ Gemini unavailable, generating local insights:", err.message);
+    return generateLocalInsights(data);
   }
+}
+
+/**
+ * Smart local fallback — generates real insights from data when Gemini is down.
+ */
+function generateLocalInsights(data: {
+  totalReported: number;
+  totalFixed: number;
+  pending: number;
+  reoccurring: number;
+  avgFixTime: number;
+  resolutionRate: number;
+  worstLocality: string;
+  bestWard: string;
+  severityDistribution: { low: number; medium: number; high: number; critical: number };
+}): import("../models/types").AIInsights {
+  const { totalReported, totalFixed, pending, reoccurring, avgFixTime, resolutionRate, worstLocality, bestWard, severityDistribution } = data;
+  const criticalPct = totalReported > 0 ? Math.round((severityDistribution.critical / totalReported) * 100) : 0;
+  const highPct = totalReported > 0 ? Math.round((severityDistribution.high / totalReported) * 100) : 0;
+  const severeTotal = severityDistribution.critical + severityDistribution.high;
+  const severePct = totalReported > 0 ? Math.round((severeTotal / totalReported) * 100) : 0;
+
+  // Build dynamic summary
+  const resLabel = resolutionRate >= 50 ? "above average" : resolutionRate >= 25 ? "moderate" : "critically low";
+  const summary = `This week: ${totalReported} potholes reported, ${totalFixed} fixed (${Math.round(resolutionRate)}% resolution — ${resLabel}). ${pending} remain pending with ${severityDistribution.critical} critical-severity cases. ${worstLocality} requires immediate attention while ${bestWard} leads in repairs. Average fix time: ${avgFixTime.toFixed(1)} days.`;
+
+  // Build issues
+  const issues: string[] = [];
+  if (resolutionRate < 25) {
+    issues.push(`Resolution rate at ${Math.round(resolutionRate)}% — well below the 50% target. ${pending} potholes remain unaddressed.`);
+  }
+  if (severityDistribution.critical > 0) {
+    issues.push(`${severityDistribution.critical} critical-severity potholes (${criticalPct}% of total) pose immediate safety risks and require priority dispatch.`);
+  }
+  if (severeTotal > totalReported * 0.4) {
+    issues.push(`${severePct}% of all reports are high or critical severity — indicating widespread road deterioration rather than isolated incidents.`);
+  }
+  if (reoccurring > 0) {
+    issues.push(`${reoccurring} reoccurring pothole${reoccurring > 1 ? "s" : ""} detected — previous repairs have failed, suggesting quality issues with patching materials or contractors.`);
+  }
+  if (avgFixTime > 7) {
+    issues.push(`Average fix time of ${avgFixTime.toFixed(1)} days exceeds the 7-day benchmark. SLA enforcement needs strengthening.`);
+  }
+  if (issues.length === 0) {
+    issues.push(`No critical blockers detected. ${totalFixed} repairs completed this period.`);
+  }
+
+  // Build patterns
+  const patterns: string[] = [];
+  if (severityDistribution.critical > severityDistribution.high) {
+    patterns.push(`Critical reports outnumber high-severity cases (${severityDistribution.critical} vs ${severityDistribution.high}), suggesting roads are deteriorating past the moderate stage before being reported.`);
+  }
+  if (totalFixed > 0 && totalFixed < pending) {
+    patterns.push(`Repair rate (${totalFixed}/week) is outpaced by new reports — the backlog of ${pending} pending potholes is likely growing.`);
+  }
+  if (reoccurring > 0) {
+    patterns.push(`${reoccurring} reoccurrence${reoccurring > 1 ? "s" : ""} indicate a repair quality pattern — same locations failing within weeks of patching.`);
+  }
+  patterns.push(`${worstLocality} continues to be the highest-concentration area. ${bestWard} ward shows the most responsive repair crews.`);
+
+  // Build recommendations
+  const recommendations: string[] = [];
+  if (severityDistribution.critical > 0) {
+    recommendations.push(`Deploy emergency repair crews to ${worstLocality} — ${severityDistribution.critical} critical potholes need attention within 6-hour SLA windows.`);
+  }
+  if (reoccurring > 0) {
+    recommendations.push(`Audit repair quality for ${reoccurring} reoccurring sites. Consider switching to hot-mix asphalt or full-depth patching for repeat failures.`);
+  }
+  if (resolutionRate < 30) {
+    recommendations.push(`Increase crew allocation — current ${Math.round(resolutionRate)}% resolution rate requires at least 2× repair capacity to clear the ${pending}-pothole backlog.`);
+  }
+  recommendations.push(`Replicate ${bestWard} ward's repair workflow across underperforming zones to standardise response times.`);
+
+  return { summary, issues, patterns, recommendations };
 }

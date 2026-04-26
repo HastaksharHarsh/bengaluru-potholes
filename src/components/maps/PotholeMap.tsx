@@ -159,7 +159,12 @@ function PotholeMapInner({
         zoom={zoom}
         options={{
           styles: mapStyles,
-          mapTypeControl: false,
+          mapTypeControl: true,
+          mapTypeControlOptions: {
+            position: window.google?.maps?.ControlPosition?.TOP_RIGHT,
+            style: window.google?.maps?.MapTypeControlStyle?.DROPDOWN_MENU,
+            mapTypeIds: ["roadmap", "satellite", "terrain"],
+          },
           streetViewControl: false,
           fullscreenControl: true,
         }}
@@ -172,44 +177,44 @@ function PotholeMapInner({
               radius: 30,
               opacity: 0.75,
               gradient: [
-                "rgba(0,255,255,0)",
-                "rgba(0,255,255,1)",
-                "rgba(0,191,255,1)",
-                "rgba(0,127,255,1)",
-                "rgba(0,63,255,1)",
-                "rgba(0,0,255,1)",
-                "rgba(0,0,223,1)",
-                "rgba(0,0,191,1)",
-                "rgba(0,0,159,1)",
-                "rgba(0,0,127,1)",
-                "rgba(63,0,91,1)",
-                "rgba(127,0,63,1)",
-                "rgba(191,0,31,1)",
-                "rgba(255,0,0,1)",
+                "rgba(0, 255, 255, 0)",
+                "rgba(0, 255, 255, 1)",
+                "rgba(0, 255, 128, 1)",
+                "rgba(0, 255, 0, 1)",
+                "rgba(128, 255, 0, 1)",
+                "rgba(255, 255, 0, 1)",
+                "rgba(255, 128, 0, 1)",
+                "rgba(255, 0, 0, 1)"
               ],
             }}
           />
         )}
 
-        {/* Markers — shown in both modes but dim when heatmap is active */}
-        {clusteredPotholes.map((p) => (
-          <MarkerF
-            key={p.id}
-            position={p.position}
-            onClick={() => {
-              setSelected(p);
-              onSelect?.(p);
-            }}
-            icon={{
-              path: window.google?.maps?.SymbolPath?.CIRCLE || 0,
-              scale: p.severity === "critical" ? 9 : p.severity === "high" ? 7 : 6,
-              fillColor: p.status === "repaired" ? "#10b981" : severityColor(p.severity),
-              fillOpacity: showHeatmap ? 0.2 : 0.9,
-              strokeColor: p.reoccurred ? "#ef4444" : "#fff",
-              strokeWeight: p.reoccurred ? 3 : (showHeatmap ? 0 : 2),
-            }}
-          />
-        ))}
+        {/* Markers — hidden in heatmap mode unless selected */}
+        {clusteredPotholes.map((p) => {
+          const isSelected = selected?.id === p.id;
+          const isVisible = !showHeatmap || isSelected;
+
+          return (
+            <MarkerF
+              key={p.id}
+              position={p.position}
+              onClick={() => {
+                setSelected(p);
+                onSelect?.(p);
+              }}
+              opacity={isVisible ? 1 : 0}
+              icon={{
+                path: window.google?.maps?.SymbolPath?.CIRCLE || 0,
+                scale: p.severity === "critical" ? 9 : p.severity === "high" ? 7 : 6,
+                fillColor: p.status === "repaired" ? "#10b981" : severityColor(p.severity),
+                fillOpacity: 0.9,
+                strokeColor: p.reoccurred ? "#ef4444" : "#fff",
+                strokeWeight: p.reoccurred ? 3 : 2,
+              }}
+            />
+          );
+        })}
 
         {selected && (
           <InfoWindowF position={selected.position} onCloseClick={() => setSelected(null)}>

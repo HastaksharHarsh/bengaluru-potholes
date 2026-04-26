@@ -1,5 +1,5 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
-import { LayoutDashboard, Camera, Map, Building2, Trophy, Languages, Shield, FileText } from "lucide-react";
+import { LayoutDashboard, Camera, Map, Building2, Trophy, Languages, Shield, FileText, Newspaper } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ const navItems = [
   { to: "/reports", icon: FileText, key: "nav_reports" as const, label: "Reports" },
   { to: "/localities", icon: Building2, key: "nav_localities" as const, label: "Areas" },
   { to: "/wards", icon: Trophy, key: "nav_wards" as const, label: "Wards" },
+  { to: "/newsletter", icon: Newspaper, key: "nav_newsletter" as const, label: "Newsletter" },
 ];
 
 import { useNavigate } from "react-router-dom";

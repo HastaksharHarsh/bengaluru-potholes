@@ -14,6 +14,7 @@ const dict: Dict = {
   nav_localities: { en: "Localities", kn: "ಪ್ರದೇಶಗಳು" },
   nav_wards: { en: "Ward Ranking", kn: "ವಾರ್ಡ್ ಶ್ರೇಣಿ" },
   nav_reports: { en: "Reports", kn: "ವರದಿಗಳು" },
+  nav_newsletter: { en: "Newsletter", kn: "ನ್ಯೂಸ್‌ಲೆಟರ್" },
   hero_cta: { en: "Report a Pothole", kn: "ಗುಂಡಿ ವರದಿ ಮಾಡಿ" },
   step_capture: { en: "Capture", kn: "ಸೆರೆಹಿಡಿಯಿರಿ" },
   step_size: { en: "Size", kn: "ಗಾತ್ರ" },

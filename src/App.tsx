@@ -12,6 +12,8 @@ import WardRanking from "./pages/WardRanking";
 import LocalityDetail from "./pages/LocalityDetail";
 import WardDetail from "./pages/WardDetail";
 import Reports from "./pages/Reports";
+import Newsletter from "./pages/Newsletter";
+import NewsletterWard from "./pages/NewsletterWard";
 import SupervisorLogin from "./pages/SupervisorLogin";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -34,6 +36,8 @@ const App = () => (
             <Route path="/wards" element={<WardRanking />} />
             <Route path="/wards/:id" element={<WardDetail />} />
             <Route path="/reports" element={<Reports />} />
+            <Route path="/newsletter" element={<Newsletter />} />
+            <Route path="/newsletter/:wardId" element={<NewsletterWard />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
