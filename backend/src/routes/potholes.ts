@@ -170,6 +170,7 @@ router.get("/progression", async (req: Request, res: Response) => {
       parseFloat(lng as string),
       radius ? parseFloat(radius as string) : 50
     );
+    console.log(`🔍 Progression requested for (${lat}, ${lng}) - traffic score: ${progression.liveTraffic?.trafficScore}`);
     res.json(progression);
   } catch (err: any) {
     res.status(500).json({ error: err.message });

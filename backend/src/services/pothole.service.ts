@@ -123,41 +123,13 @@ export async function listPotholes(options: {
 }
 
 /**
- * Get potholes for map rendering (lightweight — only coords + severity + status).
+ * Get potholes for map rendering.
  */
-export async function getMapPotholes(): Promise<
-  Array<{
-    id: string;
-    position: { lat: number; lng: number };
-    severity: Severity;
-    severityScore: number;
-    status: PotholeStatus;
-    size: SizeBucket;
-    road: string;
-    localityId: string;
-    reports: number;
-    daysOpen: number;
-    slaBreached: boolean;
-    reoccurred: boolean;
-  }>
-> {
+export async function getMapPotholes() {
   const snap = await db.collection(COLLECTION).get();
   return snap.docs.map((doc) => {
     const d = doc.data();
-    return {
-      id: d.id,
-      position: d.position,
-      severity: d.severity,
-      severityScore: d.severityScore,
-      status: d.status,
-      size: d.size,
-      road: d.road,
-      localityId: d.localityId,
-      reports: d.reports || 1,
-      daysOpen: d.daysOpen || 0,
-      slaBreached: d.slaBreached || false,
-      reoccurred: d.reoccurred || false,
-    };
+    return enrichPothole(d as Pothole);
   });
 }
 
@@ -172,7 +144,6 @@ export async function findNearbyPotholes(
   const ranges = getGeohashRanges(lat, lng, radiusMeters);
   const allResults: Pothole[] = [];
 
-  // Query each geohash range
   for (const range of ranges) {
     const snap = await db
       .collection(COLLECTION)
@@ -182,7 +153,6 @@ export async function findNearbyPotholes(
 
     for (const doc of snap.docs) {
       const pothole = doc.data() as Pothole;
-      // Final distance filter (geohash is approximate)
       const dist = distanceMeters(pothole.position, { lat, lng });
       if (dist <= radiusMeters) {
         allResults.push(enrichPothole(pothole));
@@ -190,7 +160,6 @@ export async function findNearbyPotholes(
     }
   }
 
-  // Deduplicate (same pothole might appear from multiple geohash ranges)
   const seen = new Set<string>();
   return allResults.filter((p) => {
     if (seen.has(p.id)) return false;
@@ -200,7 +169,7 @@ export async function findNearbyPotholes(
 }
 
 /**
- * Update pothole status (e.g., mark repaired).
+ * Update pothole status.
  */
 export async function updatePotholeStatus(
   id: string,
@@ -221,7 +190,7 @@ export async function updatePotholeStatus(
 }
 
 /**
- * Increment upvote count and slightly increase severity for a pothole.
+ * Upvote logic.
  */
 export async function upvotePothole(id: string): Promise<{ upvotes: number; severityScore: number } | null> {
   const ref = db.collection(COLLECTION).doc(id);
@@ -231,11 +200,8 @@ export async function upvotePothole(id: string): Promise<{ upvotes: number; seve
   const current = doc.data() as Pothole;
   const newUpvotes = (current.upvotes || 0) + 1;
   const newReports = (current.reports || 1) + 1;
-
-  // Slightly increase severity score to indicate more traffic/reports (max 100)
   let newScore = Math.min(100, (current.severityScore || 0) + 2);
 
-  // Update severity category if score crosses threshold
   let newSeverity: Severity = current.severity;
   if (newScore >= 80) newSeverity = "critical";
   else if (newScore >= 60) newSeverity = "high";
@@ -251,19 +217,74 @@ export async function upvotePothole(id: string): Promise<{ upvotes: number; seve
   return { upvotes: newUpvotes, severityScore: newScore };
 }
 
-/**
- * Get all potholes (used by stats/aggregation).
- */
 export async function getAllPotholes(): Promise<Pothole[]> {
   const snap = await db.collection(COLLECTION).get();
   return snap.docs.map((doc) => enrichPothole(doc.data() as Pothole));
 }
 
-// ── Internal: Enrich a pothole with computed fields ──────────────────────────
+// ─── Internal: Enrichment ────────────────────────────────────────────────────
 function enrichPothole(p: Pothole): Pothole {
+  const daysOpen = getDaysOpen(p.reportedAt);
+  const slaBreached = isSlaBreached(p.reportedAt, p.slaHours, p.status);
+  const progression = calculateProgression(p, daysOpen);
+
   return {
     ...p,
-    daysOpen: getDaysOpen(p.reportedAt),
-    slaBreached: isSlaBreached(p.reportedAt, p.slaHours, p.status),
+    daysOpen,
+    slaBreached,
+    ...progression
   };
+}
+
+function calculateProgression(p: Pothole, daysOpen: number) {
+  let projectedSeverity: Severity = p.severity;
+  let projectedSize: SizeBucket = p.size;
+  let riskLevel: "low" | "moderate" | "high" | "critical" = "low";
+
+  if (daysOpen >= 45) projectedSeverity = "critical";
+  else if (daysOpen >= 30) projectedSeverity = "high";
+  else if (daysOpen >= 15) projectedSeverity = "high";
+  else if (daysOpen >= 7 && p.severity === "low") projectedSeverity = "medium";
+
+  if (daysOpen >= 30) projectedSize = "large";
+  else if (daysOpen >= 15 && p.size === "small") projectedSize = "medium";
+
+  if (daysOpen >= 30 || projectedSeverity === "critical") riskLevel = "critical";
+  else if (daysOpen >= 15 || projectedSeverity === "high") riskLevel = "high";
+  else if (daysOpen >= 7) riskLevel = "moderate";
+
+  return { projectedSeverity, projectedSize, riskLevel, isDangerous: daysOpen >= 30 || projectedSize === "large" };
+}
+
+/**
+ * Get Progressions
+ */
+export async function getProgressions(options: {
+  localityId?: string;
+  wardId?: string;
+  severity?: Severity;
+  minDays?: number;
+}) {
+  try {
+    const snap = await db.collection(COLLECTION).get();
+    let results = snap.docs
+      .map(doc => enrichPothole(doc.data() as Pothole))
+      .filter(p => p.status !== "repaired");
+
+    if (options.localityId) results = results.filter(r => r.localityId === options.localityId);
+    if (options.wardId) results = results.filter(r => r.wardId === options.wardId);
+    if (options.severity) results = results.filter(r => r.severity === options.severity);
+    if (options.minDays) results = results.filter(r => r.daysOpen >= options.minDays!);
+
+    const riskWeight = { critical: 4, high: 3, moderate: 2, low: 1 };
+    results.sort((a: any, b: any) => 
+      (riskWeight[b.riskLevel as keyof typeof riskWeight] || 0) - (riskWeight[a.riskLevel as keyof typeof riskWeight] || 0) || 
+      b.daysOpen - a.daysOpen
+    );
+
+    return results;
+  } catch (err) {
+    console.error("❌ getProgressions Error:", err);
+    throw err;
+  }
 }
