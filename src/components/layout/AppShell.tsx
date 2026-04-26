@@ -1,197 +1,246 @@
 import { useState } from "react";
-import { NavLink, Outlet, Link, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Camera, Map, Building2, Trophy, Languages, Shield, FileText, Newspaper, TrendingUp } from "lucide-react";
+import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
+import {
+  LayoutDashboard,
+  Camera,
+  Map as MapIcon,
+  Trophy,
+  MoreHorizontal,
+  FileText,
+  Building2,
+  TrendingUp,
+  Newspaper,
+  Shield,
+  Languages,
+  X,
+  Settings,
+  LogOut,
+  MapPin,
+  BarChart2,
+  Mail
+} from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/lib/store";
 
-const navItems = [
-  { to: "/", icon: LayoutDashboard, key: "nav_dashboard" as const, label: "Home", end: true },
-  { to: "/progressions", icon: TrendingUp, key: "nav_progressions" as const, label: "Progressions" },
-  { to: "/map", icon: Map, key: "nav_map" as const, label: "Map" },
-  { to: "/report", icon: Camera, key: "nav_report" as const, label: "Report" },
-  { to: "/reports", icon: FileText, key: "nav_reports" as const, label: "Reports" },
-  { to: "/localities", icon: Building2, key: "nav_localities" as const, label: "Areas" },
-  { to: "/wards", icon: Trophy, key: "nav_wards" as const, label: "Wards" },
-  { to: "/newsletter", icon: Newspaper, key: "nav_newsletter" as const, label: "Newsletter" },
+const sidebarNavItems = [
+  { to: "/",            icon: LayoutDashboard, label: "nav_dashboard",    end: true },
+  { to: "/map",         icon: MapIcon,         label: "nav_map"             },
+  { to: "/report",      icon: Camera,          label: "nav_report"       },
+  { to: "/reports",     icon: FileText,        label: "nav_reports"              },
+  { to: "/localities",  icon: MapPin,          label: "nav_localities"           },
+  { to: "/wards",       icon: BarChart2,       label: "nav_wards"        },
+  { to: "/progressions",icon: TrendingUp,      label: "nav_progressions"         },
+  { to: "/newsletter",  icon: Mail,            label: "nav_newsletter"           },
 ];
 
+const bottomNavItems = [
+  { to: "/",     icon: LayoutDashboard, label: "nav_dashboard", end: true },
+  { to: "/map",  icon: MapIcon,         label: "nav_map"               },
+  { to: "/report",icon: Camera,         label: "nav_report", isCta: true},
+  { to: "/wards",icon: BarChart2,       label: "nav_wards"             },
+  { to: null,    icon: MoreHorizontal,  label: "nav_more",   isMore: true},
+];
 
-export function AppShell() {
-  const { t, lang, setLang } = useI18n();
-  const { isSupervisor, logout } = useAppStore();
+const citizenMoreItems = [
+  { to: "/reports",      icon: FileText,   label: "nav_reports"      },
+  { to: "/localities",   icon: MapPin,     label: "nav_localities"   },
+  { to: "/progressions", icon: TrendingUp, label: "nav_progressions" },
+  { to: "/newsletter",   icon: Mail,       label: "nav_newsletter"   },
+];
+
+const supervisorMoreItems = [
+  { to: "/reports",      icon: FileText,   label: "nav_reports"       },
+  { to: "/progressions", icon: TrendingUp, label: "nav_progressions"  },
+  { to: "/newsletter",   icon: Mail,       label: "nav_newsletter"    },
+  { to: "/supervisor/login", icon: Settings, label: "nav_settings"   },
+];
+
+function MoreSheet({ open, onClose, isSupervisor }: { open: boolean; onClose: () => void; isSupervisor: boolean }) {
+  const { t } = useI18n();
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState(false);
+  const items = isSupervisor ? supervisorMoreItems : citizenMoreItems;
+  if (!open) return null;
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <>
+      <div className="lg:hidden fixed inset-0 z-50 bg-[#202124] opacity-40 transition-opacity" onClick={onClose} />
+      <div className="lg:hidden fixed inset-x-0 bottom-0 z-50 animate-fade-in">
+        <div className="bg-[#1e293b] rounded-t-[16px] border-t border-white/10 shadow-lift-g">
+          <div className="flex justify-center pt-3 pb-1">
+            <div className="h-1 w-8 rounded-full bg-slate-600" />
+          </div>
+          <div className="flex items-center justify-between px-5 py-3 border-b border-white/10">
+            <span className="text-h3 text-white">
+              {isSupervisor ? "Supervisor Menu" : "More Options"}
+            </span>
+            <button onClick={onClose} className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-surface-muted transition-colors">
+              <X className="h-5 w-5 text-secondary-g" />
+            </button>
+          </div>
+          <div className="grid grid-cols-4 gap-2 p-4 pb-8">
+            {items.map((item) => (
+              <button
+                key={item.to}
+                onClick={() => { navigate(item.to); onClose(); }}
+                className="flex flex-col items-center gap-2 py-4 px-2 rounded-[10px] hover:bg-white/10 active:scale-[0.97] transition-all justify-center"
+              >
+                <item.icon className="h-6 w-6 text-white" />
+                <span className="text-[11px] font-[500] text-slate-200 text-center leading-tight">{t(item.label as any)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
 
-      {/* ── Desktop Sidebar (lg+) ─────────────────────────────────── */}
-      <aside className={cn(
-        "hidden lg:flex flex-col bg-sidebar text-sidebar-foreground shrink-0 border-r border-sidebar-border sticky top-0 h-screen transition-all duration-300",
-        collapsed ? "w-20" : "w-64"
-      )}>
-        {/* Logo */}
-        <div className="px-6 py-6 border-b border-sidebar-border flex items-center justify-between">
-          <div className="flex items-center gap-2.5 overflow-hidden">
-            <div className="h-9 w-9 rounded-lg gradient-hero flex items-center justify-center text-white font-display font-bold text-sm shrink-0">
-              ಬೆಂ
-            </div>
-            {!collapsed && (
-              <div className="animate-in fade-in slide-in-from-left-2 duration-300">
-                <div className="font-display font-semibold text-sm leading-tight whitespace-nowrap">{t("app_name")}</div>
-                <div className="text-[10px] text-sidebar-foreground/60 uppercase tracking-wider">BBMP Smart City</div>
-              </div>
-            )}
+export function AppShell() {
+  const { lang, setLang, t } = useI18n();
+  const { isSupervisor, logout } = useAppStore();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  return (
+    <div className="min-h-screen flex bg-surface-page" style={{ minHeight: "100vh" }}>
+      {/* ── Desktop Sidebar ── */}
+      <aside 
+        className="hidden lg:flex flex-col shrink-0 sticky top-0 h-screen w-[280px] min-w-[280px] border-r border-gray-800"
+        style={{ 
+          background: "#1e293b",
+          boxShadow: "4px 0 20px rgba(0,0,0,0.15)"
+        }}
+      >
+        {/* Logo Zone */}
+        <div 
+          className="h-[72px] px-5 flex items-center gap-3"
+          style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}
+        >
+          <div 
+            className="h-[40px] w-[40px] rounded-full flex items-center justify-center text-white shrink-0"
+            style={{ 
+              background: "#ea4335",
+              fontSize: "14px",
+              fontWeight: 700,
+            }}
+          >
+            PH
+          </div>
+          <div>
+            <div className="text-[16px] font-[700] text-white leading-tight tracking-wide">PlotHole</div>
+            <div className="text-[11px] font-[500] text-slate-400 leading-tight">BBMP Bengaluru</div>
           </div>
         </div>
 
-        {/* Nav Links */}
-        <nav className="flex-1 p-3 space-y-1">
-          {navItems.map((it) => (
+        {/* Nav */}
+        <nav className="flex-1 py-5 px-4 space-y-1 overflow-y-auto">
+          {sidebarNavItems.map((it) => (
             <NavLink
               key={it.to}
               to={it.to}
               end={it.end}
-              title={collapsed ? t(it.key) : undefined}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-smooth",
-                  isActive
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-elegant"
-                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                  collapsed && "justify-center px-0"
-                )
-              }
+              className={({ isActive }) => cn(
+                "flex items-center gap-3 px-4 h-[48px] rounded-[10px] transition-all duration-150 text-[15px]",
+                isActive
+                  ? "text-white font-[600] bg-white/10"
+                  : "text-slate-300 font-[500] hover:text-white hover:bg-white/5"
+              )}
+              style={({ isActive }) => isActive ? {
+                borderLeft: "4px solid #3b82f6"
+              } : { borderLeft: "4px solid transparent" }}
             >
-              <it.icon className="h-4 w-4 shrink-0" />
-              {!collapsed && (
-                <span className="animate-in fade-in slide-in-from-left-2 duration-300">
-                  {t(it.key)}
-                </span>
+              {({ isActive }) => (
+                <>
+                  <it.icon className="h-[20px] w-[20px] shrink-0" strokeWidth={isActive ? 2.5 : 2} />
+                  <span>{t(it.label as any)}</span>
+                </>
               )}
             </NavLink>
           ))}
         </nav>
 
-        {/* Sidebar Toggle */}
-        <button 
-          onClick={() => setCollapsed(!collapsed)}
-          className="absolute -right-3 top-20 h-6 w-6 rounded-full border bg-background flex items-center justify-center text-muted-foreground hover:text-primary shadow-sm z-50 transition-transform active:scale-95"
-        >
-          {collapsed ? "→" : "←"}
-        </button>
-
         {/* Bottom Controls */}
-        <div className="p-4 border-t border-sidebar-border space-y-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            title={collapsed ? (isSupervisor ? "Logout" : "Supervisor Mode") : undefined}
-            className={cn(
-              "w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-300",
-              isSupervisor && "bg-sidebar-primary/20 text-sidebar-primary font-semibold",
-              collapsed && "justify-center px-0"
-            )}
-            onClick={() => isSupervisor ? logout() : navigate("/supervisor/login")}
-          >
-            <Shield className={cn("h-4 w-4", !collapsed && "mr-2")} />
-            {!collapsed && <span>{isSupervisor ? "Logout (Supervisor)" : "Supervisor Mode"}</span>}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            title={collapsed ? (lang === "en" ? "ಕನ್ನಡ" : "English") : undefined}
-            className={cn(
-              "w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-300",
-              collapsed && "justify-center px-0"
-            )}
-            onClick={() => setLang(lang === "en" ? "kn" : "en")}
-          >
-            <Languages className={cn("h-4 w-4", !collapsed && "mr-2")} />
-            {!collapsed && <span>{lang === "en" ? "ಕನ್ನಡ" : "English"}</span>}
-          </Button>
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)" }} className="pt-4 pb-6 space-y-2">
+          {isSupervisor && (
+            <div className="mx-4 mb-3 px-3 py-2 rounded-[10px] flex items-center gap-2" style={{ background: "rgba(255,255,255,0.05)" }}>
+              <Shield className="h-[16px] w-[16px] text-amber-400 shrink-0" />
+              <span className="text-[12px] font-[600] text-amber-300 uppercase tracking-wider">Supervisor Mode</span>
+            </div>
+          )}
+          <div className="px-4">
+            <button
+              onClick={() => isSupervisor ? logout() : navigate("/supervisor/login")}
+              className="w-full flex items-center gap-3 px-4 h-[48px] rounded-[10px] text-[15px] font-[500] text-slate-300 hover:bg-red-500/10 hover:text-red-400 transition-all duration-150"
+            >
+              {isSupervisor ? <LogOut className="h-[20px] w-[20px] shrink-0" /> : <Shield className="h-[20px] w-[20px] shrink-0" />}
+              <span>{isSupervisor ? "Sign Out" : "Supervisor Login"}</span>
+            </button>
+            <button
+              onClick={() => setLang(lang === "en" ? "kn" : "en")}
+              className="w-full flex items-center gap-3 px-4 h-[48px] rounded-[10px] text-[15px] font-[500] text-slate-300 hover:text-white hover:bg-white/5 transition-all duration-150 mt-1"
+            >
+              <Languages className="h-[20px] w-[20px] shrink-0" />
+              <span>{lang === "en" ? "ಕನ್ನಡ" : "English"}</span>
+            </button>
+          </div>
         </div>
       </aside>
 
-      {/* ── Mobile Top Bar ───────────────────────────────────────── */}
-      <div className="lg:hidden fixed inset-x-0 top-0 z-50 bg-sidebar text-sidebar-foreground px-4 py-3 flex items-center justify-between border-b border-sidebar-border shadow-sm">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg gradient-hero flex items-center justify-center text-white font-bold text-xs shrink-0">ಬೆಂ</div>
-          <div>
-            <div className="font-display text-sm font-semibold leading-tight">{t("app_name")}</div>
-            {isSupervisor && (
-              <div className="text-[9px] font-semibold text-sidebar-primary uppercase tracking-wider">Supervisor Mode</div>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => isSupervisor ? logout() : navigate("/supervisor/login")}
-            className={cn(
-              "flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-smooth",
-              isSupervisor
-                ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                : "text-sidebar-foreground/70 hover:bg-sidebar-accent"
-            )}
-          >
-            <Shield className="h-3.5 w-3.5" />
-          </button>
-          <button
-            onClick={() => setLang(lang === "en" ? "kn" : "en")}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent transition-smooth"
-          >
-            <Languages className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </div>
-
-      {/* ── Main Content ─────────────────────────────────────────── */}
-      <main className="flex-1 min-w-0 pt-14 pb-20 lg:pt-0 lg:pb-0 overflow-auto">
+      {/* ── Main Content ── */}
+      <main className="flex-1 min-w-0 pb-[64px] lg:pb-0 overflow-auto">
         <Outlet />
       </main>
+      {/* ── Mobile Bottom Navigation ── */}
+      <nav className="lg:hidden fixed inset-x-0 bottom-0 z-40 h-[64px] bg-[#1e293b] shadow-[0_-4px_20px_rgba(0,0,0,0.15)]">
+        <div className="flex items-center justify-around px-2 h-full">
+          {bottomNavItems.map((item) => {
+            if (item.isCta) {
+              return (
+                <button 
+                  key="report-cta" 
+                  onClick={() => navigate("/report")} 
+                  className="relative flex items-center justify-center -top-4 h-[56px] w-[56px] rounded-[50%] active:scale-[0.97] transition-transform bg-[#ea4335] shadow-lg"
+                >
+                  <Camera className="h-6 w-6 text-white" />
+                </button>
+              );
+            }
 
-      {/* ── Mobile Bottom Navigation ─────────────────────────────── */}
-      <nav className="lg:hidden fixed inset-x-0 bottom-0 z-50 bg-sidebar/80 backdrop-blur-md text-sidebar-foreground border-t border-sidebar-border pb-safe">
-        <div className="flex items-stretch justify-around px-2">
-          {navItems.map((it) => (
-            <NavLink
-              key={it.to}
-              to={it.to}
-              end={it.end}
-              className={({ isActive }) =>
-                cn(
-                  "flex flex-col items-center justify-center gap-0.5 flex-1 py-2 text-[10px] font-medium transition-all relative min-h-[64px]",
-                  it.to === "/report" ? "text-white" : isActive ? "text-sidebar-primary" : "text-sidebar-foreground/60"
-                )
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  {it.to === "/report" ? (
-                    /* Popped Camera Icon */
-                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex flex-col items-center">
-                      <div className={cn(
-                        "h-14 w-14 rounded-2xl gradient-hero flex items-center justify-center shadow-lg shadow-primary/40 ring-4 ring-background transition-transform active:scale-90",
-                        isActive ? "scale-110" : "scale-100"
-                      )}>
-                        <Camera className="h-7 w-7 text-white" />
-                      </div>
-                      <span className="mt-1 font-bold text-primary">{t("nav_report")}</span>
-                    </div>
-                  ) : (
-                    <>
-                      <it.icon className={cn("h-5 w-5 mb-0.5", isActive ? "text-sidebar-primary scale-110" : "text-sidebar-foreground/60")} />
-                      <span>{t(it.key)}</span>
-                    </>
-                  )}
-                </>
-              )}
-            </NavLink>
-          ))}
+            if (item.isMore) {
+              return (
+                <button 
+                  key="more" 
+                  onClick={() => setMoreOpen(true)} 
+                  className="flex flex-col items-center justify-center gap-1 flex-1 min-w-[40px] h-full active:bg-white/10 transition-colors"
+                >
+                  <MoreHorizontal className={cn("h-6 w-6", moreOpen ? "text-white" : "text-slate-300")} />
+                  <span className={cn("text-[11px] font-[500]", moreOpen ? "text-white" : "text-slate-300")}>{t(item.label as any)}</span>
+                </button>
+              );
+            }
+
+            return (
+              <NavLink
+                key={item.to!}
+                to={item.to!}
+                end={item.end}
+                className="flex flex-col items-center justify-center gap-1 flex-1 min-w-[40px] h-full transition-colors active:bg-white/10"
+              >
+                {({ isActive }) => (
+                  <>
+                    <item.icon className={cn("h-6 w-6", isActive ? "text-white" : "text-slate-300")} strokeWidth={isActive ? 2.5 : 2} />
+                    <span className={cn("text-[11px] font-[500]", isActive ? "text-white" : "text-slate-300")}>{t(item.label as any)}</span>
+                  </>
+                )}
+              </NavLink>
+            );
+          })}
         </div>
       </nav>
+
+      <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} isSupervisor={isSupervisor} />
     </div>
   );
 }

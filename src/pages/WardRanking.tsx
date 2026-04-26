@@ -1,18 +1,27 @@
-import { Card } from "@/components/ui/card";
-import { Trophy, Award, Medal, ChevronRight, Loader2 } from "lucide-react";
-import { useI18n } from "@/lib/i18n";
-import { useEffect, useState, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Trophy, Award, Medal, ChevronDown, ChevronUp, Loader2, Info, MapPin } from "lucide-react";
+import React, { useEffect, useState, useMemo } from "react";
 import { fetchPotholes } from "@/lib/api";
 import { wards } from "@/lib/bengaluru-data";
 import type { Pothole } from "../../backend/src/models/types";
+import { cn } from "@/lib/utils";
+
+const AVATAR_COLORS = [
+  { bg: "#e8f0fe", text: "#4285f4" },
+  { bg: "#e6f4ea", text: "#34a853" },
+  { bg: "#fef7e0", text: "#fbbc04" },
+  { bg: "#fce8e6", text: "#ea4335" },
+  { bg: "#f3e8fd", text: "#9c27b0" },
+  { bg: "#e0f2f1", text: "#009688" },
+];
+
+function getAvatarInitials(name: string) {
+  return name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
+}
 
 export default function WardRanking() {
-  const { t } = useI18n();
-  const navigate = useNavigate();
-
   const [dbPotholes, setDbPotholes] = useState<Pothole[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPotholes({ limit: 5000 })
@@ -28,13 +37,11 @@ export default function WardRanking() {
         const open = items.filter((p) => p.status !== "repaired");
         const fixed = items.filter((p) => p.status === "repaired");
         const breached = open.filter((p) => p.slaBreached).length;
-        const avgResolveDays =
-          fixed.length === 0
-            ? 0
-            : Math.round((fixed.reduce((a, p) => a + p.daysOpen, 0) / fixed.length) * 10) / 10;
         const fixRate = items.length === 0 ? 0 : fixed.length / items.length;
-        const perf = Math.max(0, Math.min(100, Math.round(fixRate * 100 - breached * 2)));
-        return { w, total: items.length, open: open.length, fixed: fixed.length, breached, avgResolveDays, perf };
+        // Formula: Repair rate - SLA breaches (normalized 0-100 for display logic)
+        let rawScore = (fixRate * 100) - breached;
+        const perf = Math.max(-20, Math.min(100, Math.round(rawScore)));
+        return { w, total: items.length, open: open.length, fixed: fixed.length, breached, perf, recent: fixed.slice(0, 3) };
       })
       .sort((a, b) => b.perf - a.perf);
   }, [dbPotholes]);
@@ -42,7 +49,7 @@ export default function WardRanking() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--g-blue)]" />
       </div>
     );
   }
@@ -51,164 +58,179 @@ export default function WardRanking() {
   const rest = rows.slice(3);
 
   return (
-    <div className="p-4 lg:p-8 space-y-5 animate-fade-in">
-      <div>
-        <h1 className="text-xl lg:text-2xl font-display font-bold">{t("nav_wards")}</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Score = fix rate − SLA breaches. Higher is better. Tap any ward to see pothole logs.
-        </p>
+    <div className="p-[24px] lg:p-[28px] space-y-[24px] animate-fade-in pb-[120px] lg:pb-[24px]">
+      {/* ── Page Header ── */}
+      <div className="hero-banner flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+        <div>
+          <div className="hero-banner-tag">BBMP WARD ACCOUNTABILITY</div>
+          <h1 className="hero-banner-title">Ward Ranking</h1>
+          <p className="hero-banner-subtitle">Score = fix rate − SLA breaches. Higher is better. Tap any ward to see pothole logs.</p>
+        </div>
+        <div className="group relative">
+          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-[10px] text-[13px] font-[600] hover:bg-gray-50 transition-colors shadow-sm">
+            <Info className="h-4 w-4" /> Score Formula
+          </button>
+          <div className="absolute right-0 top-full mt-2 w-64 p-4 bg-white shadow-lift-g border border-gray-100 rounded-[12px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+            <p className="text-[12px] font-[700] text-[#1a1f36] tracking-[0.05em] uppercase border-b border-gray-100 pb-2 mb-2">SCORE = REPAIR RATE − SLA BREACHES</p>
+            <p className="text-[12px] text-secondary-g leading-relaxed">Calculates the percentage of fixed potholes, penalized directly by the number of active SLA breaches.</p>
+          </div>
+        </div>
       </div>
 
-      {/* Podium — 1 col mobile, 3 col md+ */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {/* ── Top 3 Podium Cards ── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-[12px]">
         {top.map((r, idx) => {
-          const icon = idx === 0 ? Trophy : idx === 1 ? Medal : Award;
-          const Icon = icon;
-          const grad =
-            idx === 0
-              ? "gradient-hero"
-              : idx === 1
-                ? "bg-gradient-to-br from-secondary to-secondary/70"
-                : "bg-gradient-to-br from-accent to-accent/70";
+          const config = [
+            { bg: "#fffbea", border: "#fbbc04", icon: Trophy, color: "#fbbc04", rank: "Gold" },
+            { bg: "#f8f9fa", border: "#dadce0", icon: Medal, color: "#5f6368", rank: "Silver" },
+            { bg: "#fff3e0", border: "#ffb74d", icon: Award, color: "#ff6d00", rank: "Bronze" }
+          ][idx];
+          const Icon = config.icon;
+          
           return (
-            <Link key={r.w.id} to={`/wards/${r.w.id}`} className="block">
-              <Card
-                className={`${grad} text-white p-4 lg:p-6 shadow-elegant hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-[10px] uppercase tracking-wider opacity-80">Rank #{idx + 1}</div>
-                    <div className="font-display font-bold text-lg mt-0.5">
-                      Ward {r.w.number} · {r.w.name}
-                    </div>
-                    <div className="text-xs opacity-75">{r.w.zone} Zone</div>
-                  </div>
-                  <Icon className="h-7 w-7 opacity-90 shrink-0" />
-                </div>
-                <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                  <div>
-                    <div className="text-2xl font-display font-bold">{r.perf}</div>
-                    <div className="text-[10px] uppercase opacity-80">Score</div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-display font-bold">{r.fixed}</div>
-                    <div className="text-[10px] uppercase opacity-80">Repaired</div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-display font-bold">{r.breached}</div>
-                    <div className="text-[10px] uppercase opacity-80">Overdue</div>
+            <div 
+              key={r.w.id} 
+              className="p-[16px] rounded-[16px] border-[1.5px] relative overflow-hidden"
+              style={{ backgroundColor: config.bg, borderColor: config.border }}
+            >
+              <div className="flex items-start justify-between mb-[16px]">
+                <Icon className="h-[32px] w-[32px]" style={{ color: config.color }} />
+                <div className="text-right">
+                  <div className="text-label text-secondary-g uppercase tracking-[0.01em]">Rank #{idx + 1}</div>
+                  <div className="text-display" style={{ color: r.perf >= 60 && idx === 0 ? "var(--g-green)" : config.color, fontSize: idx === 0 ? "36px" : "30px" }}>
+                    {r.perf}
                   </div>
                 </div>
-              </Card>
-            </Link>
+              </div>
+              
+              <div className="mb-[12px]">
+                <div className="text-[20px] font-[600] text-primary-g leading-tight">{r.w.name}</div>
+                <div className="text-hint text-secondary-g">Ward {r.w.number}</div>
+              </div>
+
+              <div className="flex gap-2">
+                <span className="g-chip bg-[#e6f4ea] text-[#137333]">{r.fixed} Fixed</span>
+                <span className="g-chip bg-[#fce8e6] text-[#c5221f]">{r.breached} Breach</span>
+              </div>
+            </div>
           );
         })}
       </div>
 
-      {/* Mobile list for ranks 4+ */}
-      <div className="lg:hidden space-y-2">
-        {rest.map((r, idx) => {
-          const perfColor =
-            r.perf >= 70 ? "bg-health-good" : r.perf >= 40 ? "bg-health-warn" : "bg-health-bad";
-          return (
-            <Link key={r.w.id} to={`/wards/${r.w.id}`} className="block">
-              <Card className="p-4 hover:bg-muted/30 active:scale-[0.98] transition-all cursor-pointer">
-                <div className="flex items-center gap-3">
-                  <div className="text-base font-display font-bold text-muted-foreground w-8 shrink-0">
-                    #{idx + 4}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-sm">{r.w.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      Ward {r.w.number} · {r.w.zone}
-                    </div>
-                    <div className="h-1.5 mt-2 bg-muted rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${perfColor}`}
-                        style={{ width: `${r.perf}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <div className="text-right">
-                      <div className="font-display font-bold text-xl">{r.perf}</div>
-                      <div className="text-[10px] text-muted-foreground">{r.open} open</div>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                </div>
-              </Card>
-            </Link>
-          );
-        })}
-      </div>
-
-      {/* Desktop table */}
-      <Card className="overflow-hidden hidden lg:block">
+      {/* ── Rankings Table ── */}
+      <div className="bg-surface-card border border-default-g shadow-card-g rounded-[12px] overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium">Rank</th>
-                <th className="text-left px-4 py-3 font-medium">Ward</th>
-                <th className="text-left px-4 py-3 font-medium">Zone</th>
-                <th className="text-left px-4 py-3 font-medium">MLA</th>
-                <th className="text-center px-4 py-3 font-medium">Total</th>
-                <th className="text-center px-4 py-3 font-medium">Open</th>
-                <th className="text-center px-4 py-3 font-medium">Repaired</th>
-                <th className="text-center px-4 py-3 font-medium">SLA Breach</th>
-                <th className="text-center px-4 py-3 font-medium">Avg Days</th>
-                <th className="text-right px-4 py-3 font-medium">Score</th>
+          <table className="w-full text-left border-collapse min-w-[700px]">
+            <thead>
+              <tr className="bg-surface-muted border-b border-default-g h-[44px]">
+                <th className="px-4 text-label text-secondary-g whitespace-nowrap w-[60px]">Rank</th>
+                <th className="px-4 text-label text-secondary-g whitespace-nowrap">Ward + Zone</th>
+                <th className="px-4 text-label text-secondary-g whitespace-nowrap">Authority</th>
+                <th className="px-4 text-label text-secondary-g whitespace-nowrap text-right">Total</th>
+                <th className="px-4 text-label text-secondary-g whitespace-nowrap text-center">Fixed</th>
+                <th className="px-4 text-label text-secondary-g whitespace-nowrap text-center">Breach</th>
+                <th className="px-4 text-label text-secondary-g whitespace-nowrap w-[200px]">Score</th>
+                <th className="px-4 w-[40px]"></th>
               </tr>
             </thead>
-            <tbody className="divide-y">
-              {rest.map((r, idx) => (
-                <tr
-                  key={r.w.id}
-                  className="hover:bg-muted/30 transition-smooth cursor-pointer"
-                  onClick={() => navigate(`/wards/${r.w.id}`)}
-                >
-                  <td className="px-4 py-3 font-display font-bold text-muted-foreground">
-                    #{idx + 4}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="font-medium">{r.w.name}</div>
-                    <div className="text-xs text-muted-foreground">Ward {r.w.number}</div>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{r.w.zone}</td>
-                  <td className="px-4 py-3">
-                    <div className="text-foreground">{r.w.mla}</div>
-                    <div className="text-xs text-muted-foreground">{r.w.constituency}</div>
-                  </td>
-                  <td className="text-center">{r.total}</td>
-                  <td className="text-center font-semibold">{r.open}</td>
-                  <td className="text-center text-health-good font-semibold">{r.fixed}</td>
-                  <td className="text-center text-destructive font-semibold">{r.breached}</td>
-                  <td className="text-center">{r.avgResolveDays}d</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2 justify-end">
-                      <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className={
-                            r.perf >= 70
-                              ? "h-full bg-health-good"
-                              : r.perf >= 40
-                                ? "h-full bg-health-warn"
-                                : "h-full bg-health-bad"
-                          }
-                          style={{ width: `${r.perf}%` }}
-                        />
-                      </div>
-                      <span className="font-display font-bold w-8 text-right">{r.perf}</span>
-                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                    </div>
-                  </td>
-                </tr>
-              ))}
+            <tbody>
+              {rest.map((r, idx) => {
+                const globalRank = idx + 4;
+                const isExpanded = expandedRow === r.w.id;
+                const rowBg = idx % 2 === 0 ? "bg-[#ffffff]" : "bg-[#fafafa]";
+                const avatarColor = AVATAR_COLORS[globalRank % AVATAR_COLORS.length];
+                const positiveScore = r.perf > 0;
+                
+                return (
+                  <React.Fragment key={r.w.id}>
+                    <tr 
+                      onClick={() => setExpandedRow(isExpanded ? null : r.w.id)}
+                      className={cn(rowBg, "hover:bg-surface-active transition-colors cursor-pointer border-b border-default-g h-[64px]")}
+                    >
+                      <td className="px-4 text-body font-[500] text-secondary-g">#{globalRank}</td>
+                      <td className="px-4 py-2">
+                        <div className="text-body font-[500] text-primary-g">{r.w.name}</div>
+                        <div className="text-hint text-secondary-g">Ward {r.w.number} · {r.w.zone}</div>
+                      </td>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-3">
+                          <div 
+                            className="h-[32px] w-[32px] rounded-full flex items-center justify-center text-[12px] font-[600]"
+                            style={{ backgroundColor: avatarColor.bg, color: avatarColor.text }}
+                          >
+                            {getAvatarInitials(r.w.engineer || r.w.mla)}
+                          </div>
+                          <div>
+                            <div className="text-[13px] text-primary-g">{r.w.engineer || r.w.mla}</div>
+                            <div className="text-hint text-secondary-g">{r.w.constituency}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 text-body text-primary-g text-right">{r.total}</td>
+                      <td className="px-4 text-center">
+                        <span className="inline-block bg-[#e6f4ea] text-[#137333] rounded-[20px] px-2 py-0.5 text-[11px] font-[500]">{r.fixed} fixed</span>
+                      </td>
+                      <td className="px-4 text-center">
+                        <span className={cn("inline-block rounded-[20px] px-2 py-0.5 text-[11px] font-[500]", r.breached > 0 ? "bg-[#fce8e6] text-[#c5221f]" : "bg-surface-muted text-secondary-g")}>
+                          {r.breached} breaches
+                        </span>
+                      </td>
+                      <td className="px-4">
+                        <div className="w-full">
+                          <div className="flex justify-between text-hint mb-1">
+                            <span className="font-[500] text-primary-g">{r.perf}</span>
+                          </div>
+                          <div className="h-[6px] w-full bg-surface-muted rounded-[3px] overflow-hidden flex">
+                            <div 
+                              className="h-full rounded-[3px]"
+                              style={{ 
+                                width: `${Math.min(100, Math.max(0, positiveScore ? r.perf : 40))}%`,
+                                background: positiveScore ? "linear-gradient(to right, #34a853, #1a73e8)" : "#ea4335"
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 text-right">
+                        <button className="h-[32px] w-[32px] rounded-full flex items-center justify-center hover:bg-[rgba(0,0,0,0.04)] text-secondary-g">
+                          {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                        </button>
+                      </td>
+                    </tr>
+                    {isExpanded && (
+                      <tr className="bg-surface-active/30 border-b border-default-g">
+                        <td colSpan={8} className="p-4">
+                          <div className="flex gap-6 max-w-4xl">
+                            <div className="h-[120px] w-[200px] bg-surface-muted rounded-[8px] flex flex-col items-center justify-center border border-default-g shrink-0">
+                              <MapPin className="h-6 w-6 text-secondary-g mb-2" />
+                              <span className="text-label text-secondary-g">Map View Unavailable</span>
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="text-label text-secondary-g uppercase tracking-[0.01em] mb-2">Recent Repairs</h4>
+                              {r.recent.length > 0 ? (
+                                <div className="space-y-2">
+                                  {r.recent.map(p => (
+                                    <div key={p.id} className="flex items-center gap-2 text-body text-primary-g">
+                                      <div className="h-2 w-2 rounded-full bg-[var(--g-green)]" />
+                                      {p.road} <span className="text-hint text-secondary-g">— {new Date(p.reportedAt).toLocaleDateString()}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-body text-secondary-g">No recent repairs tracked.</p>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }

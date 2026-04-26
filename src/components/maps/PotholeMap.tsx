@@ -1,6 +1,7 @@
 import { GoogleMap, MarkerF, InfoWindowF, useJsApiLoader, HeatmapLayerF } from "@react-google-maps/api";
 import { useEffect, useState, useMemo } from "react";
-import { BENGALURU_CENTER, Pothole, severityColor, getLocality, getWard } from "@/lib/bengaluru-data";
+import { BENGALURU_CENTER, severityColor, getLocality, getWard } from "@/lib/bengaluru-data";
+import { Pothole } from "../../../backend/src/models/types";
 import { fetchProgression, type ProgressionResult } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { GoogleMapsKeyPrompt, useGoogleMapsKey } from "./GoogleMapsKey";

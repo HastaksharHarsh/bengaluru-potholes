@@ -32,28 +32,28 @@ export default function SupervisorLogin() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-muted/30">
-      <div className="w-full max-w-md space-y-8">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[#f8f9fa]">
+      <div className="w-full max-w-md space-y-8 animate-fade-in">
         <div className="text-center space-y-2">
-          <div className="mx-auto h-16 w-16 rounded-2xl gradient-hero flex items-center justify-center shadow-lg text-white mb-4">
-            <Shield className="h-8 w-8" />
+          <div className="mx-auto h-[64px] w-[64px] rounded-full flex items-center justify-center text-[#1a73e8] bg-blue-50 border border-blue-100 mb-6">
+            <Shield className="h-[32px] w-[32px]" />
           </div>
-          <h1 className="text-3xl font-display font-bold">Supervisor Portal</h1>
-          <p className="text-muted-foreground">Authorized BBMP personnel only</p>
+          <h1 className="text-page-title text-[28px] font-[600]">Supervisor Portal</h1>
+          <p className="text-sub-header">Authorized BBMP personnel only</p>
         </div>
 
-        <Card className="p-6 shadow-elegant border-primary/10">
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+        <div className="bg-white border border-gray-200 rounded-[16px] p-[32px] shadow-sm">
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-[600] text-[#1a1f36]">
                 Username
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
+                <User className="absolute left-3.5 top-3.5 h-[18px] w-[18px] text-secondary-g" />
+                <input
                   type="text"
                   placeholder="e.g. jayanagar_admin"
-                  className="pl-10 h-11 rounded-xl"
+                  className="w-full pl-[40px] pr-[16px] h-[46px] rounded-[12px] bg-surface-muted border border-default-g focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/20 transition-all text-[14px] font-[500] text-primary-g"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
@@ -61,16 +61,16 @@ export default function SupervisorLogin() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-[600] text-[#1a1f36]">
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
+                <Lock className="absolute left-3.5 top-3.5 h-[18px] w-[18px] text-secondary-g" />
+                <input
                   type="password"
                   placeholder="••••••••"
-                  className="pl-10 h-11 rounded-xl"
+                  className="w-full pl-[40px] pr-[16px] h-[46px] rounded-[12px] bg-surface-muted border border-default-g focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/20 transition-all text-[14px] font-[500] text-primary-g"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -78,25 +78,23 @@ export default function SupervisorLogin() {
               </div>
             </div>
 
-            <Button
+            <button
               type="submit"
-              className="w-full h-11 rounded-xl gradient-hero text-white font-semibold shadow-md mt-2"
+              className="w-full h-[46px] rounded-[10px] text-white font-[600] text-[15px] flex items-center justify-center gap-2 mt-2 transition-all duration-200 bg-[#1a73e8] hover:bg-[#1557b0] shadow-sm disabled:opacity-70"
               disabled={loading}
             >
-              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Sign In"}
-            </Button>
+              {loading ? <Loader2 className="h-[20px] w-[20px] animate-spin" /> : "Sign In"}
+            </button>
           </form>
-        </Card>
+        </div>
 
         <div className="text-center">
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
             onClick={() => navigate("/")}
-            className="text-muted-foreground hover:text-primary"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[20px] text-[13px] font-[500] text-secondary-g hover:text-primary-g hover:bg-white/50 transition-colors"
           >
-            <ChevronLeft className="h-4 w-4 mr-1" /> Back to Citizen Portal
-          </Button>
+            <ChevronLeft className="h-4 w-4" /> Back to Citizen Portal
+          </button>
         </div>
       </div>
     </div>

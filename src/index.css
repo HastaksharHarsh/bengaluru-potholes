@@ -1,131 +1,231 @@
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Bengaluru Civic Tech — Smart City Command Center
-   All colors HSL. Inspired by official BBMP red, monsoon teal, and night-mode dashboards.
-*/
-
 @layer base {
   :root {
-    --background: 220 24% 98%;
-    --foreground: 222 32% 12%;
+    /* ── Brand Colors ───────────────────── */
+    --g-blue:   #1a73e8;
+    --g-green:  #34a853;
+    --g-yellow: #fbbc04;
+    --g-red:    #ea4335;
+    --g-orange: #ff6d00;
+    --g-teal:   #00897b;
+    --g-purple: #7c4dff;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222 32% 12%;
+    /* ── Gradient Palette ───────────────── */
+    --grad-blue:   linear-gradient(135deg, #1a73e8 0%, #1557b0 100%);
+    --grad-green:  linear-gradient(135deg, #34a853 0%, #1e7e34 100%);
+    --grad-red:    linear-gradient(135deg, #ea4335 0%, #c62828 100%);
+    --grad-orange: linear-gradient(135deg, #ff6d00 0%, #e65100 100%);
+    --grad-teal:   linear-gradient(135deg, #00897b 0%, #00695c 100%);
+    --grad-purple: linear-gradient(135deg, #7c4dff 0%, #651fff 100%);
+    --grad-hero:   linear-gradient(135deg, #1a237e 0%, #1565c0 50%, #0097a7 100%);
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 32% 12%;
+    /* ── Surfaces ───────────────────── */
+    --surface-page:   #eef4ff; /* Very light subtle blue */
+    --surface-card:   #ffffff;
+    --surface-muted:  #e0e9f6;
+    --surface-active: #d0def1;
+    --border-strong:  #cbd5e1; /* Visible border */
 
-    /* BBMP-inspired deep crimson */
-    --primary: 354 78% 46%;
-    --primary-foreground: 0 0% 100%;
-    --primary-glow: 354 90% 62%;
+    /* ── Text ───────────────────── */
+    --text-primary:   #1a1f36;
+    --text-secondary: #4a5568;
+    --text-hint:      #718096;
 
-    /* Monsoon teal — secondary brand */
-    --secondary: 188 78% 38%;
-    --secondary-foreground: 0 0% 100%;
+    /* ── Border ───────────────────── */
+    --border-default: #d1d5db; /* Darker than background */
 
-    --muted: 220 16% 94%;
-    --muted-foreground: 222 14% 42%;
-
-    --accent: 38 96% 52%;
-    --accent-foreground: 222 32% 12%;
-
-    --destructive: 0 84% 55%;
-    --destructive-foreground: 0 0% 100%;
-
-    /* Severity tokens (used across map, lists, badges) */
-    --severity-critical: 0 84% 52%;
-    --severity-high: 24 95% 53%;
-    --severity-medium: 42 96% 52%;
-    --severity-low: 142 64% 42%;
-
-    /* Health score */
-    --health-good: 142 64% 42%;
-    --health-warn: 38 96% 52%;
-    --health-bad: 0 84% 52%;
-
-    --border: 220 16% 88%;
-    --input: 220 16% 90%;
-    --ring: 354 78% 46%;
-
-    --radius: 0.75rem;
-
-    /* Gradients */
-    --gradient-hero: linear-gradient(135deg, hsl(354 78% 46%) 0%, hsl(24 95% 53%) 100%);
-    --gradient-monsoon: linear-gradient(135deg, hsl(188 78% 38%) 0%, hsl(222 60% 28%) 100%);
-    --gradient-night: linear-gradient(180deg, hsl(222 40% 10%) 0%, hsl(222 36% 14%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(220 24% 98%) 100%);
-
-    /* Shadows */
-    --shadow-elegant: 0 8px 30px -10px hsl(354 78% 46% / 0.25);
-    --shadow-soft: 0 2px 12px -4px hsl(222 32% 12% / 0.08);
-    --shadow-glow: 0 0 40px hsl(354 90% 62% / 0.35);
-
-    --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-
-    --sidebar-background: 222 36% 12%;
-    --sidebar-foreground: 220 16% 88%;
-    --sidebar-primary: 354 78% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 30% 18%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 222 30% 20%;
-    --sidebar-ring: 354 78% 50%;
+    /* ── Shadows ───────────────────── */
+    --shadow-card: 0 2px 8px rgba(26, 115, 232, 0.08), 0 1px 3px rgba(0,0,0,0.06);
+    --shadow-lift: 0 8px 24px rgba(26, 115, 232, 0.15);
   }
 
-  .dark {
-    --background: 222 36% 8%;
-    --foreground: 220 16% 92%;
-    --card: 222 32% 12%;
-    --card-foreground: 220 16% 92%;
-    --popover: 222 32% 12%;
-    --popover-foreground: 220 16% 92%;
-    --primary: 354 82% 56%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 188 70% 44%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 222 24% 18%;
-    --muted-foreground: 220 12% 64%;
-    --accent: 38 96% 56%;
-    --accent-foreground: 222 32% 12%;
-    --destructive: 0 72% 50%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 222 24% 20%;
-    --input: 222 24% 20%;
-    --ring: 354 82% 56%;
-  }
-}
-
-@layer base {
   * {
-    @apply border-border;
+    border-color: var(--border-default);
   }
+
   body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    background-color: var(--surface-page);
+    color: var(--text-primary);
+    font-family: "Google Sans", "Inter", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    font-size: 14px;
+    line-height: 1.7;
+    min-height: 100vh;
   }
-  html {
-    scroll-behavior: smooth;
+
+  h1, h2, h3, h4, h5, h6 {
+    line-height: 1.5;
+    color: var(--text-primary);
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--g-blue) !important;
+    outline-offset: 2px !important;
   }
 }
 
 @layer utilities {
-  .gradient-hero { background: var(--gradient-hero); }
-  .gradient-monsoon { background: var(--gradient-monsoon); }
-  .gradient-night { background: var(--gradient-night); }
-  .shadow-elegant { box-shadow: var(--shadow-elegant); }
-  .shadow-soft { box-shadow: var(--shadow-soft); }
-  .shadow-glow { box-shadow: var(--shadow-glow); }
-  .transition-smooth { transition: var(--transition-smooth); }
+  /* ── Typography Scale ── */
+  .text-display   { font-size: 32px; font-weight: 700; }
+  .text-h1        { font-size: 22px; font-weight: 600; }
+  .text-h2        { font-size: 18px; font-weight: 600; }
+  .text-h3        { font-size: 15px; font-weight: 500; }
+  .text-body      { font-size: 14px; font-weight: 400; }
+  .text-label     { font-size: 12px; font-weight: 500; letter-spacing: 0.01em; }
+  .text-hint      { font-size: 11px; font-weight: 400; }
 
-  .pulse-ring {
-    animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  .text-page-title { font-size: 24px; font-weight: 700; color: var(--text-primary); line-height: 1.3; }
+  .text-sub-header { font-size: 13px; font-weight: 400; color: var(--text-secondary); line-height: 1.5; }
+  .text-col-header { font-size: 11px; font-weight: 500; color: #718096; text-transform: uppercase; letter-spacing: 0.04em; }
+
+  /* ── Shadows ── */
+  .shadow-card-g { box-shadow: var(--shadow-card); }
+  .shadow-lift-g { box-shadow: var(--shadow-lift); }
+
+  /* ── Surface Classes ── */
+  .bg-surface-page   { background-color: var(--surface-page); }
+  .bg-surface-card   { background-color: var(--surface-card); }
+  .bg-surface-muted  { background-color: var(--surface-muted); }
+  .bg-surface-active { background-color: var(--surface-active); }
+
+  /* ── Text Colors ── */
+  .text-primary-g   { color: var(--text-primary); }
+  .text-secondary-g { color: var(--text-secondary); }
+  .text-hint-g      { color: var(--text-hint); }
+  .border-default-g { border-color: var(--border-default); }
+
+  /* ── Transition helper ── */
+  .transition-smooth { transition: all 0.18s ease; }
+
+  /* ── Google-style chip ── */
+  .g-chip {
+    @apply inline-flex items-center justify-center rounded-[20px] font-medium transition-all duration-150;
+    font-size: 12px;
+    padding: 4px 12px;
   }
-  @keyframes pulse-ring {
-    0% { box-shadow: 0 0 0 0 hsl(var(--severity-critical) / 0.6); }
-    70% { box-shadow: 0 0 0 16px hsl(var(--severity-critical) / 0); }
-    100% { box-shadow: 0 0 0 0 hsl(var(--severity-critical) / 0); }
+
+  /* ═══════════════════════════════════════════════════════
+     CARD SYSTEM — Three feelings with colorful light gradients
+  ═══════════════════════════════════════════════════════ */
+
+  /* Data Card — clean white with subtle blue tint */
+  .card-data {
+    background: linear-gradient(145deg, #ffffff 0%, #f7faff 100%);
+    border: 1px solid rgba(26, 115, 232, 0.1);
+    border-radius: 14px;
+    padding: 20px 22px;
+    box-shadow: 0 2px 8px rgba(26,115,232,0.07);
+  }
+
+  /* Action Card — warm left-accent interactive */
+  .card-action {
+    background: linear-gradient(145deg, #ffffff 0%, #f8fbff 100%);
+    border-radius: 12px;
+    border: 1px solid rgba(26,115,232,0.09);
+    padding: 14px 16px 14px 20px;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .card-action:hover {
+    background: linear-gradient(145deg, #f0f6ff 0%, #e8f0fe 100%);
+    box-shadow: 0 4px 16px rgba(26,115,232,0.12);
+    transform: translateY(-1px);
+  }
+
+  /* Insight Card — floating with lift on hover */
+  .card-insight {
+    background: linear-gradient(145deg, #ffffff 0%, #f5f9ff 100%);
+    border-radius: 16px;
+    border: 1px solid rgba(26,115,232,0.10);
+    padding: 22px;
+    transition: all 0.22s ease;
+    position: relative;
+    box-shadow: 0 2px 8px rgba(26,115,232,0.06);
+  }
+  .card-insight:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 28px rgba(26,115,232,0.14);
+    background: linear-gradient(145deg, #ffffff 0%, #edf4ff 100%);
+  }
+  .card-insight-badge {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+  }
+
+  /* ═══════════════════════════════════════════════════════
+     STAT CARDS — Clean white surface with subtle color accent line
+  ═══════════════════════════════════════════════════════ */
+  .stat-card-base {
+    background: #ffffff;
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.2s ease;
+  }
+  .stat-card-base:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    transform: translateY(-1px);
+  }
+
+  .stat-card-blue { @apply stat-card-base border-t-[3px] border-t-blue-500; }
+  .stat-card-green { @apply stat-card-base border-t-[3px] border-t-green-500; }
+  .stat-card-red { @apply stat-card-base border-t-[3px] border-t-red-500; }
+  .stat-card-yellow { @apply stat-card-base border-t-[3px] border-t-amber-500; }
+  .stat-card-teal { @apply stat-card-base border-t-[3px] border-t-teal-500; }
+  .stat-card-purple { @apply stat-card-base border-t-[3px] border-t-purple-500; }
+
+  /* ═══════════════════════════════════════════════════════
+     HERO BANNERS — Subtle, uniform page headers
+  ═══════════════════════════════════════════════════════ */
+  .hero-banner {
+    background: #ffffff;
+    border: 1px solid var(--border-strong);
+    border-radius: 16px;
+    padding: 24px 32px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.02);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-banner-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: #202124;
+    margin-bottom: 4px;
+  }
+  .hero-banner-subtitle {
+    font-size: 13px;
+    color: #5f6368;
+  }
+  .hero-banner-tag {
+    font-size: 11px;
+    font-weight: 600;
+    color: #1a73e8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+  }
+
+  /* ═══════════════════════════════════════════════════════
+     ANIMATIONS
+  ═══════════════════════════════════════════════════════ */
+  .animate-fade-in { animation: fade-in 0.18s ease-out both; }
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .animate-slide-up { animation: slide-up 0.22s ease-out both; }
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 }
