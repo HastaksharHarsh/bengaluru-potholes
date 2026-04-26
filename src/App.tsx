@@ -37,12 +37,9 @@ const App = () => (
             <Route path="/wards" element={<WardRanking />} />
             <Route path="/wards/:id" element={<WardDetail />} />
             <Route path="/reports" element={<Reports />} />
-<<<<<<< HEAD
             <Route path="/newsletter" element={<Newsletter />} />
             <Route path="/newsletter/:wardId" element={<NewsletterWard />} />
-=======
             <Route path="/progressions" element={<Progressions />} />
->>>>>>> b94f1038062ae4bbcc754e8f9660f02b0886897c
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

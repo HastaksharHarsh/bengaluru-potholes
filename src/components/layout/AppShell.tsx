@@ -1,11 +1,6 @@
-<<<<<<< HEAD
-import { NavLink, Outlet, Link } from "react-router-dom";
-import { LayoutDashboard, Camera, Map, Building2, Trophy, Languages, Shield, FileText, Newspaper } from "lucide-react";
-=======
 import { useState } from "react";
 import { NavLink, Outlet, Link, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Camera, Map, Building2, Trophy, Languages, Shield, FileText, TrendingUp } from "lucide-react";
->>>>>>> b94f1038062ae4bbcc754e8f9660f02b0886897c
+import { LayoutDashboard, Camera, Map, Building2, Trophy, Languages, Shield, FileText, Newspaper, TrendingUp } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
