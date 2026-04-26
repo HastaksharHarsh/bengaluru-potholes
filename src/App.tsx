@@ -13,6 +13,7 @@ import LocalityDetail from "./pages/LocalityDetail";
 import WardDetail from "./pages/WardDetail";
 import Reports from "./pages/Reports";
 import SupervisorLogin from "./pages/SupervisorLogin";
+import Progressions from "./pages/Progressions";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/wards" element={<WardRanking />} />
             <Route path="/wards/:id" element={<WardDetail />} />
             <Route path="/reports" element={<Reports />} />
+            <Route path="/progressions" element={<Progressions />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

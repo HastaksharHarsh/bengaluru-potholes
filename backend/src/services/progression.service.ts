@@ -3,6 +3,7 @@
 // have been growing over time — indicating a deteriorating road segment.
 
 import { findNearbyPotholes } from "./pothole.service";
+import { getTrafficScore, type TrafficData } from "./traffic.service";
 import type { Pothole, Severity } from "../models/types";
 
 export interface ProgressionResult {
@@ -19,6 +20,7 @@ export interface ProgressionResult {
         severity: Severity;
     }>;
     riskLabel: "Critical Hotspot" | "Deteriorating" | "Stable" | "Recovering";
+    liveTraffic?: TrafficData;       // current traffic at the cluster location
 }
 
 /**
@@ -32,7 +34,10 @@ export async function getClusterProgression(
     lng: number,
     radiusMeters = 50
 ): Promise<ProgressionResult> {
-    const nearby = await findNearbyPotholes(lat, lng, radiusMeters);
+    const [nearby, liveTraffic] = await Promise.all([
+        findNearbyPotholes(lat, lng, radiusMeters),
+        getTrafficScore(lat, lng)
+    ]);
 
     // Sort chronologically (oldest first)
     const sorted = [...nearby].sort(
@@ -49,6 +54,7 @@ export async function getClusterProgression(
             latestReport: "",
             timelineEntries: [],
             riskLabel: "Stable",
+            liveTraffic,
         };
     }
 
@@ -130,5 +136,6 @@ export async function getClusterProgression(
         latestReport: sorted[sorted.length - 1].reportedAt,
         timelineEntries,
         riskLabel,
+        liveTraffic,
     };
 }

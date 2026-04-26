@@ -1,5 +1,6 @@
-import { NavLink, Outlet, Link } from "react-router-dom";
-import { LayoutDashboard, Camera, Map, Building2, Trophy, Languages, Shield, FileText } from "lucide-react";
+import { useState } from "react";
+import { NavLink, Outlet, Link, useNavigate } from "react-router-dom";
+import { LayoutDashboard, Camera, Map, Building2, Trophy, Languages, Shield, FileText, TrendingUp } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -7,6 +8,7 @@ import { useAppStore } from "@/lib/store";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, key: "nav_dashboard" as const, label: "Home", end: true },
+  { to: "/progressions", icon: TrendingUp, key: "nav_progressions" as const, label: "Progressions" },
   { to: "/map", icon: Map, key: "nav_map" as const, label: "Map" },
   { to: "/report", icon: Camera, key: "nav_report" as const, label: "Report" },
   { to: "/reports", icon: FileText, key: "nav_reports" as const, label: "Reports" },
@@ -14,28 +16,33 @@ const navItems = [
   { to: "/wards", icon: Trophy, key: "nav_wards" as const, label: "Wards" },
 ];
 
-import { useNavigate } from "react-router-dom";
 
 export function AppShell() {
   const { t, lang, setLang } = useI18n();
   const { isSupervisor, logout } = useAppStore();
   const navigate = useNavigate();
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
     <div className="min-h-screen flex bg-background">
 
       {/* ── Desktop Sidebar (lg+) ─────────────────────────────────── */}
-      <aside className="hidden lg:flex w-64 flex-col bg-sidebar text-sidebar-foreground shrink-0 border-r border-sidebar-border sticky top-0 h-screen">
+      <aside className={cn(
+        "hidden lg:flex flex-col bg-sidebar text-sidebar-foreground shrink-0 border-r border-sidebar-border sticky top-0 h-screen transition-all duration-300",
+        collapsed ? "w-20" : "w-64"
+      )}>
         {/* Logo */}
-        <div className="px-6 py-6 border-b border-sidebar-border">
-          <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-lg gradient-hero flex items-center justify-center text-white font-display font-bold text-sm">
+        <div className="px-6 py-6 border-b border-sidebar-border flex items-center justify-between">
+          <div className="flex items-center gap-2.5 overflow-hidden">
+            <div className="h-9 w-9 rounded-lg gradient-hero flex items-center justify-center text-white font-display font-bold text-sm shrink-0">
               ಬೆಂ
             </div>
-            <div>
-              <div className="font-display font-semibold text-sm leading-tight">{t("app_name")}</div>
-              <div className="text-[10px] text-sidebar-foreground/60 uppercase tracking-wider">BBMP Smart City</div>
-            </div>
+            {!collapsed && (
+              <div className="animate-in fade-in slide-in-from-left-2 duration-300">
+                <div className="font-display font-semibold text-sm leading-tight whitespace-nowrap">{t("app_name")}</div>
+                <div className="text-[10px] text-sidebar-foreground/60 uppercase tracking-wider">BBMP Smart City</div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -46,43 +53,63 @@ export function AppShell() {
               key={it.to}
               to={it.to}
               end={it.end}
+              title={collapsed ? t(it.key) : undefined}
               className={({ isActive }) =>
                 cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-smooth",
                   isActive
                     ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-elegant"
-                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                  collapsed && "justify-center px-0"
                 )
               }
             >
               <it.icon className="h-4 w-4 shrink-0" />
-              {t(it.key)}
+              {!collapsed && (
+                <span className="animate-in fade-in slide-in-from-left-2 duration-300">
+                  {t(it.key)}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
+
+        {/* Sidebar Toggle */}
+        <button 
+          onClick={() => setCollapsed(!collapsed)}
+          className="absolute -right-3 top-20 h-6 w-6 rounded-full border bg-background flex items-center justify-center text-muted-foreground hover:text-primary shadow-sm z-50 transition-transform active:scale-95"
+        >
+          {collapsed ? "→" : "←"}
+        </button>
 
         {/* Bottom Controls */}
         <div className="p-4 border-t border-sidebar-border space-y-2">
           <Button
             variant="ghost"
             size="sm"
+            title={collapsed ? (isSupervisor ? "Logout" : "Supervisor Mode") : undefined}
             className={cn(
-              "w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-              isSupervisor && "bg-sidebar-primary/20 text-sidebar-primary font-semibold"
+              "w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-300",
+              isSupervisor && "bg-sidebar-primary/20 text-sidebar-primary font-semibold",
+              collapsed && "justify-center px-0"
             )}
             onClick={() => isSupervisor ? logout() : navigate("/supervisor/login")}
           >
-            <Shield className="h-4 w-4 mr-2" />
-            {isSupervisor ? "Logout (Supervisor)" : "Supervisor Mode"}
+            <Shield className={cn("h-4 w-4", !collapsed && "mr-2")} />
+            {!collapsed && <span>{isSupervisor ? "Logout (Supervisor)" : "Supervisor Mode"}</span>}
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            title={collapsed ? (lang === "en" ? "ಕನ್ನಡ" : "English") : undefined}
+            className={cn(
+              "w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-300",
+              collapsed && "justify-center px-0"
+            )}
             onClick={() => setLang(lang === "en" ? "kn" : "en")}
           >
-            <Languages className="h-4 w-4 mr-2" />
-            {lang === "en" ? "ಕನ್ನಡ" : "English"}
+            <Languages className={cn("h-4 w-4", !collapsed && "mr-2")} />
+            {!collapsed && <span>{lang === "en" ? "ಕನ್ನಡ" : "English"}</span>}
           </Button>
         </div>
       </aside>

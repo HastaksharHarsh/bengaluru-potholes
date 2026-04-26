@@ -60,6 +60,14 @@ export async function fetchNearbyPotholes(lat: number, lng: number, radius?: num
   return fetchAPI<Pothole[]>(`/potholes/nearby?${query.toString()}`);
 }
 
+export interface TrafficData {
+  trafficScore: number;
+  speedLimitKph: number;
+  congestionRatio: number;
+  isArterial: boolean;
+  source: "live" | "fallback";
+}
+
 export interface ProgressionResult {
   clusterSize: number;
   trend: "worsening" | "stable" | "improving";
@@ -74,6 +82,7 @@ export interface ProgressionResult {
     severity: string;
   }>;
   riskLabel: "Critical Hotspot" | "Deteriorating" | "Stable" | "Recovering";
+  liveTraffic?: TrafficData;
 }
 
 export async function fetchProgression(lat: number, lng: number, radius?: number): Promise<ProgressionResult> {
@@ -151,6 +160,21 @@ export async function fetchWeeklyReports(): Promise<WeeklyReport[]> {
 }
 
 // ─── Auth ───────────────────────────────────────────────────────────────────
+
+export async function fetchProgressions(params?: {
+  localityId?: string;
+  wardId?: string;
+  severity?: Severity;
+  minDays?: number;
+}): Promise<{ stats: any; potholes: Pothole[] }> {
+  const query = new URLSearchParams();
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined) query.append(key, String(value));
+    });
+  }
+  return fetchAPI<{ stats: any; potholes: Pothole[] }>(`/progressions?${query.toString()}`);
+}
 
 export async function supervisorLogin(username: string, password: string): Promise<{ token: string }> {
   const res = await fetchAPI<{ token: string }>("/auth/supervisor/login", {

@@ -237,13 +237,26 @@ function PotholeMapInner({
                 {selected.reports} reports • {selected.daysOpen}d open
                 {selected.slaBreached && <span className="text-destructive font-medium"> • SLA breached</span>}
               </div>
-              {selected.trafficScore !== undefined && (
-                <div className="text-xs mt-1.5 flex items-center gap-1 font-medium" style={{ color: selected.trafficScore >= 70 ? "#ef4444" : selected.trafficScore >= 40 ? "#f97316" : "#22c55e" }}>
-                  🚦 Traffic: {selected.trafficScore}/100
-                  {selected.speedLimitKph && <span className="text-muted-foreground font-normal"> · {selected.speedLimitKph} km/h</span>}
-                  {selected.congestionRatio && selected.congestionRatio > 1.1 && (
-                    <span className="text-muted-foreground font-normal"> · {selected.congestionRatio.toFixed(1)}× congested</span>
+              {/* Traffic Data (either from report or live from progression) */}
+              {(selected.trafficScore !== undefined || progression?.liveTraffic) ? (
+                <div 
+                  className="text-xs mt-1.5 flex items-center gap-1 font-medium" 
+                  style={{ 
+                    color: (selected.trafficScore ?? progression?.liveTraffic?.trafficScore ?? 0) >= 70 ? "#ef4444" : 
+                           (selected.trafficScore ?? progression?.liveTraffic?.trafficScore ?? 0) >= 40 ? "#f97316" : "#22c55e" 
+                  }}
+                >
+                  🚦 Traffic: {selected.trafficScore ?? progression?.liveTraffic?.trafficScore}/100
+                  {selected.trafficScore === undefined && progression?.liveTraffic && (
+                    <span className="bg-primary/10 text-primary text-[8px] px-1 rounded uppercase tracking-wider ml-0.5">Live</span>
                   )}
+                  {(selected.speedLimitKph ?? progression?.liveTraffic?.speedLimitKph) && (
+                    <span className="text-muted-foreground font-normal"> · {selected.speedLimitKph ?? progression?.liveTraffic?.speedLimitKph} km/h</span>
+                  )}
+                </div>
+              ) : selected.trafficScore === undefined && (
+                <div className="text-xs mt-1.5 flex items-center gap-1 font-medium text-muted-foreground animate-pulse">
+                  🚦 Traffic: Loading live data...
                 </div>
               )}
               {/* Cluster Progression */}

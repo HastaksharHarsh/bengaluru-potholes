@@ -1,12 +1,14 @@
 // ─── Traffic Service — Google Maps Platform Integration ──────────────────────
+import fetch from "node-fetch";
+
 // Uses the Roads API (speed limits) and Routes API (congestion ratio) to
 // derive a real-time traffic impact score for a pothole location.
 
-const GMAPS_KEY = process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_KEY || "";
+const GMAPS_KEY = process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_MAP_API_KEY || process.env.VITE_GOOGLE_MAPS_KEY || "";
 
 if (!GMAPS_KEY) {
     console.warn(
-        "⚠️  GOOGLE_MAPS_API_KEY not set. Traffic scoring will use locality static fallback."
+        "⚠️  Google Maps API Key not found in environment variables (GOOGLE_MAPS_API_KEY or VITE_MAP_API_KEY). Traffic scoring will use locality static fallback."
     );
 }
 

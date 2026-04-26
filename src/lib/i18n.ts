@@ -9,6 +9,7 @@ const dict: Dict = {
   app_name: { en: "Bengaluru Road Watch", kn: "ಬೆಂಗಳೂರು ರಸ್ತೆ ನೋಟ" },
   tagline: { en: "Smart City Pothole Intelligence • BBMP", kn: "ಸ್ಮಾರ್ಟ್ ಸಿಟಿ ಪಾಟ್‌ಹೋಲ್ ಇಂಟೆಲಿಜೆನ್ಸ್ • ಬಿಬಿಎಂಪಿ" },
   nav_dashboard: { en: "Dashboard", kn: "ಡ್ಯಾಶ್‌ಬೋರ್ಡ್" },
+  nav_progressions: { en: "Progressions", kn: "ಪ್ರಗತಿ ಶ್ರೇಣಿ" },
   nav_report: { en: "Report a Pothole", kn: "ಗುಂಡಿ ವರದಿ ಮಾಡಿ" },
   nav_map: { en: "Live Map", kn: "ಲೈವ್ ನಕ್ಷೆ" },
   nav_localities: { en: "Localities", kn: "ಪ್ರದೇಶಗಳು" },
